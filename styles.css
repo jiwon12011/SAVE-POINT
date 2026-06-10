@@ -1157,7 +1157,8 @@ h3 {
   box-shadow: inset 0 -8px 26px rgba(0, 0, 0, 0.35);
 }
 .brew-liquid {
-  position: absolute; left: -20%; right: -20%; bottom: 0; height: 26%;
+  position: absolute; left: -20%; right: -20%; bottom: 0; height: 72%;
+  transform-origin: center bottom; transform: rotate(0deg) scaleY(0.36); will-change: transform;
   background: radial-gradient(circle at 50% 0, color-mix(in srgb, var(--liquid, #d9c7f2) 88%, white 12%), var(--liquid, #d9c7f2));
   border-radius: 44% 44% 0 0 / 30% 30% 0 0;
 }

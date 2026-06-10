@@ -61,21 +61,36 @@ window.POTION_DATA = {
     innkeeper: ["dew_berry", "echo_thyme", "marsh_root"]
   },
 
-  /* 1차 의뢰 1건 — 마법사 */
-  request: {
-    id: "quest_wizard_maze_compass_01",
-    npc: "wizard",
-    wantsPotion: "maze_compass",
-    wantsQuality: 1, // 0평범/1좋음/2완벽 → 좋음 이상
-    rewardStardust: 35,
-    rewardMaterial: "decision_paralysis",
-    rewardQty: 2,
-    offerLines: [
-      "흥미롭군요. 미궁의 결정체를 모으는데 증류 단계에서 자꾸 방향이 흔들려요.",
-      "좋음 이상의 미로 나침반 포션 하나, 만들어줄 수 있나요? 재료는 돌려드릴게요."
-    ],
-    doneLine: "정확하게 만들었군요. 흥미롭습니다. 다음엔 더 어려운 걸 부탁해도 될까요?"
-  },
+  /* 의뢰 풀 — 정산 시 완료되면 다음 의뢰로 순환 (requests[0]=첫 의뢰) */
+  requests: [
+    {
+      id: "req_wizard_maze_compass", npc: "wizard", wantsPotion: "maze_compass", wantsQuality: 1,
+      rewardStardust: 35, rewardMaterial: "decision_paralysis", rewardQty: 2,
+      offerLines: [
+        "흥미롭군요. 미궁의 결정체를 모으는데 증류 단계에서 자꾸 방향이 흔들려요.",
+        "좋음 이상의 미로 나침반 포션 하나, 만들어줄 수 있나요? 재료는 돌려드릴게요."
+      ],
+      doneLine: "정확하게 만들었군요. 흥미롭습니다. 다음엔 더 어려운 걸 부탁해도 될까요?"
+    },
+    {
+      id: "req_healer_dream_fog", npc: "healer", wantsPotion: "dream_fog_elixir", wantsQuality: 1,
+      rewardStardust: 28, rewardMaterial: "sleep_deprivation", rewardQty: 2,
+      offerLines: [
+        "요즘 잠 못 드는 손님이 많아요. 꿈안개 증류액이 좀 필요한데…",
+        "좋음 이상으로 하나만 빚어줄래요? 재료는 제가 채워드릴게요. 🌿"
+      ],
+      doneLine: "고마워요. 이 향이면 다들 푹 잘 거예요. 손이 좋네요, 정말."
+    },
+    {
+      id: "req_guild_silence_seal", npc: "guildmaster", wantsPotion: "silence_seal", wantsQuality: 1,
+      rewardStardust: 30, rewardMaterial: "notification_overload", rewardQty: 2,
+      offerLines: [
+        "길드 회의실이 너무 시끄러워. 소음 결계 포션이 필요하네.",
+        "좋음 이상이면 길드 표준으로 쳐주지. 만들어 오게. 📜"
+      ],
+      doneLine: "이 품질이면 길드 표준 이상이야. 다음 의뢰도 자네에게 맡기지."
+    }
+  ],
 
   /* 순수 게임 전환: 상태이상 id의 표시명을 게임 재료명으로 (id는 코드 키로 유지) */
   materialName: {
@@ -95,17 +110,17 @@ window.POTION_DATA = {
       seeds: ["clarity_moss", "echo_thyme"], seedChance: 0.2 },
     pond: { name: "공허 연못", emoji: "🌌", desc: "희귀한 것이 가라앉은 연못",
       pool: ["marsh_root", "void_lily", "anxiety", "sadness", "escapism", "compass_vine", "signal_grass"],
-      seeds: ["dew_berry", "ghost_pepper_mild", "void_lily"], seedChance: 0.45 }
+      seeds: ["dew_berry", "ghost_pepper_mild", "void_lily"], seedChance: 0.35 }
   },
 
   /* 상점 — 씨앗·기본 재료 구매(별사탕). 1차는 구매만(판매는 2차) */
   shop: {
-    seeds: ["moonherb", "dew_berry", "clarity_moss", "still_lavender"], seedCost: 20,
+    seeds: ["moonherb", "dew_berry", "clarity_moss", "still_lavender"], seedCost: 18,
     materials: ["sleep_deprivation", "caffeine_overload", "focus_lost", "decision_paralysis"], materialCost: 15
   },
 
   /* 잠자리 정산 보상 */
-  settle: { stardust: 10 },
+  settle: { stardust: 15 },
 
   /* 마법사 멘토 공방 한 줄 대사 */
   mentorLines: {

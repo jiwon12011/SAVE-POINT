@@ -10,7 +10,7 @@
     streak: 4, stardust: 0, level: 7, xp: 40, xpMax: 100,
     badges: {}, completedEver: 0, npcMet: {},
     /* 포션 연금술 */
-    materials: {}, seeds: {}, plots: [], potionCodex: {}, activeRequest: null,
+    materials: {}, seeds: {}, plots: [], potionCodex: {}, activeRequest: null, requestIndex: 0,
     /* 일일 플래그 (정산/채집 가용) */
     settledToday: false, foragedToday: {}
   };
@@ -145,7 +145,7 @@
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         streak: state.streak, stardust: state.stardust, level: state.level, xp: state.xp, xpMax: state.xpMax,
         badges: state.badges, npcMet: state.npcMet, completedEver: state.completedEver,
-        materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex, activeRequest: state.activeRequest,
+        materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex, activeRequest: state.activeRequest, requestIndex: state.requestIndex,
         settledToday: state.settledToday, foragedToday: state.foragedToday
       }));
     } catch (e) {}
@@ -160,6 +160,7 @@
       state.materials = s.materials || {}; state.seeds = s.seeds || {};
       state.plots = s.plots || []; state.potionCodex = s.potionCodex || {};
       state.activeRequest = (typeof s.activeRequest === "undefined") ? null : s.activeRequest;
+      state.requestIndex = s.requestIndex || 0;
       state.settledToday = !!s.settledToday; state.foragedToday = s.foragedToday || {};
       return true;
     } catch (e) { return false; }
@@ -291,12 +292,14 @@
     growPlotsOnSave();                          // 텃밭 한 단계 성장
     state.streak += 1;
     var streakSeed = dropStreakSeed();          // 출석 씨앗
-    state.stardust += (PD.settle ? PD.settle.stardust : 10);
-    gainXp(10);
+    var settleStar = (PD.settle ? PD.settle.stardust : 15);
+    state.stardust += settleStar;
+    gainXp(settleStar);
     state.foragedToday = {};                     // 채집 가용 리셋
+    rotateRequestIfDone();                        // 완료된 의뢰면 새 의뢰로 교체
     updateHud(); updateBanner(); updateWorkshopBadge(); persist();
     var anchor = $("#act-settle");
-    var msg = "🌙 정산 완료 · 텃밭 +1 · 별사탕 +" + (PD.settle ? PD.settle.stardust : 10);
+    var msg = "🌙 정산 완료 · 텃밭 +1 · 별사탕 +" + settleStar;
     floatReward(anchor, msg);
     if (streakSeed) floatReward($("#save-banner-sec"), "🌱 " + cropName(streakSeed) + " 씨앗");
   }
@@ -327,7 +330,7 @@
     if (!f || state.foragedToday[pid]) return;
     state.foragedToday[pid] = true;
     var loot = [];   // {id, kind:'mat'|'seed'}
-    var n = 1 + Math.floor(Math.random() * 3);   // 1~3개 재료
+    var n = 1 + Math.floor(Math.random() * 2) + Math.floor(Math.random() * 2);   // 1~3개, 2 중심 가중치(2d2-1)
     for (var i = 0; i < n; i++) {
       var id = f.pool[Math.floor(Math.random() * f.pool.length)];
       addMaterial(id, 1); loot.push({ id: id, seed: false });
@@ -506,7 +509,7 @@
       card.className = "brew-card";
       var hint = plan && plan.matchScore >= 4 ? "완벽 가능 ★" : plan && plan.matchScore >= 2 ? "좋음 가능 ◆" : "평범 ○";
       card.innerHTML =
-        '<img class="brew-thumb" src="' + potionImg(p) + '" alt="" />' +
+        '<img class="brew-thumb" src="' + potionImg(p) + '" alt="" width="46" height="46" decoding="async" loading="lazy" />' +
         '<div class="brew-meta"><b>' + esc(p.name) + "</b><small>" + esc(p.lore) + "</small>" +
         '<span class="brew-hint">' + hint + "</span></div>" +
         '<button class="brew-go" type="button">휘저어 만들기</button>';
@@ -548,7 +551,7 @@
     return (p.ail && map[p.ail]) || "#d9c7f2";
   }
   function resetStirVisual() {
-    var liq = $("#brew-liquid"); if (liq) { liq.style.transform = "rotate(0deg)"; liq.style.height = "26%"; }
+    var liq = $("#brew-liquid"); if (liq) { liq.style.transform = "rotate(0deg) scaleY(0.36)"; }
     var tip = $("#stir-tip"); if (tip) tip.classList.remove("ready");
   }
   function stirAngle(e, rect) {
@@ -559,7 +562,8 @@
   function onStirMove(e) {
     if (!brew.active) return;
     e.preventDefault();
-    var pad = $("#stir-pad"); var rect = pad.getBoundingClientRect();
+    var rect = brew.padRect;                       // perf: pointerdown에서 1회 캐시한 rect 사용(레이아웃 스래싱 방지)
+    if (!rect) { var pad0 = $("#stir-pad"); if (!pad0) return; rect = brew.padRect = pad0.getBoundingClientRect(); }
     var ang = stirAngle(e, rect);
     if (brew.lastAng !== null) {
       var d = ang - brew.lastAng;
@@ -568,8 +572,9 @@
       brew.deltas.push(Math.abs(d)); if (brew.deltas.length > 40) brew.deltas.shift();
       var liq = $("#brew-liquid");
       if (liq) {
-        liq.style.transform = "rotate(" + (ang * 180 / Math.PI) + "deg)";
-        liq.style.height = Math.min(72, 26 + brew.rounds / brew.target * 46) + "%";
+        // perf: height(레이아웃) 대신 scaleY(합성)로만 — transform 한 번에 write
+        var scale = Math.min(1, 0.36 + brew.rounds / brew.target * 0.64);
+        liq.style.transform = "rotate(" + (ang * 180 / Math.PI) + "deg) scaleY(" + scale.toFixed(3) + ")";
       }
     }
     brew.lastAng = ang;
@@ -601,12 +606,12 @@
     if (!cx) state.potionCodex[p.id] = { firstAt: Date.now(), bestQuality: q, count: 1 };
     else { cx.bestQuality = Math.max(cx.bestQuality, q); cx.count += 1; }
     // 보상
-    var reward = 8 + q * 6;
+    var reward = 10 + q * 7;
     state.stardust += reward; gainXp(reward); updateHud();
     // 의뢰 충족
     var reqMsg = checkRequestFulfill(p.id, q);
     // 결과 표시
-    var liq = $("#brew-liquid"); if (liq) liq.style.height = "72%";
+    var liq = $("#brew-liquid"); if (liq) liq.style.transform = "rotate(0deg) scaleY(1)";
     $("#brew-flask").classList.add("filling");
     $("#brew-result-name").textContent = p.name;
     $("#brew-result-quality").textContent = QUALITY_ICON[q] + " " + QUALITY_NAME[q];
@@ -623,28 +628,40 @@
   }
   function closeBrew() { $("#brew-stage").hidden = true; renderWorkshop(); }
 
-  /* ---- 의뢰 ---- */
+  /* ---- 의뢰 (정산 시 완료된 의뢰는 다음 의뢰로 순환) ---- */
+  function requestPool() { return (PD.requests && PD.requests.length) ? PD.requests : (PD.request ? [PD.request] : []); }
+  function currentRequestDef() {
+    var pool = requestPool(); if (!pool.length) return null;
+    return pool[state.requestIndex % pool.length];
+  }
   function ensureRequest() {
-    if (!state.activeRequest && PD.request) {
-      var r = PD.request;
-      state.activeRequest = { id: r.id, npc: r.npc, wants: r.wantsPotion, quality: r.wantsQuality, status: "open" };
+    if (state.activeRequest) return;
+    var r = currentRequestDef(); if (!r) return;
+    state.activeRequest = { id: r.id, npc: r.npc, wants: r.wantsPotion || r.wantsPotion, quality: r.wantsQuality, status: "open" };
+  }
+  // 정산 시: 완료된 의뢰면 다음 의뢰로 교체
+  function rotateRequestIfDone() {
+    if (state.activeRequest && state.activeRequest.status === "done") {
+      state.requestIndex = (state.requestIndex + 1) % Math.max(1, requestPool().length);
+      state.activeRequest = null;
+      ensureRequest();
     }
   }
   function updateRequestCard() {
     var wrap = $("#workshop-request"); if (!wrap) return;
-    var r = PD.request, ar = state.activeRequest;
+    var r = currentRequestDef(), ar = state.activeRequest;
     if (!r || !ar) { wrap.hidden = true; return; }
     wrap.hidden = false;
     var done = ar.status === "done";
     wrap.innerHTML =
       '<img class="req-npc" src="' + npcSprite(r.npc, done ? "joy" : "thinking") + '" alt="" />' +
-      '<div class="req-body"><span class="req-tag">' + NPC_NAME[r.npc] + "의 의뢰" + (done ? " · 완료" : "") + "</span>" +
+      '<div class="req-body"><span class="req-tag">' + NPC_NAME[r.npc] + "의 의뢰" + (done ? " · 완료 (정산하면 새 의뢰)" : "") + "</span>" +
       "<p>" + esc(done ? r.doneLine : r.offerLines[0]) + "</p>" +
       '<small>요구: ' + esc(potionById(r.wantsPotion).name) + " · 좋음 이상 · 보상 별사탕 +" + r.rewardStardust + "</small></div>";
   }
   function checkRequestFulfill(potionId, q) {
-    var ar = state.activeRequest, r = PD.request;
-    if (!ar || ar.status !== "open" || ar.wants !== potionId || q < ar.quality) return null;
+    var ar = state.activeRequest, r = currentRequestDef();
+    if (!ar || !r || ar.status !== "open" || ar.wants !== potionId || q < ar.quality) return null;
     ar.status = "done";
     state.stardust += r.rewardStardust; gainXp(r.rewardStardust); updateHud();
     addMaterial(r.rewardMaterial, r.rewardQty);
@@ -724,7 +741,7 @@
       var el = document.createElement("div");
       el.className = "codex-card" + (on ? "" : " locked") + (on && cx.bestQuality === 2 ? " perfect" : "");
       if (on) {
-        el.innerHTML = '<img src="' + potionImg(p) + '" alt="" /><b>' + esc(p.name) + "</b>" +
+        el.innerHTML = '<img src="' + potionImg(p) + '" alt="" width="54" height="54" decoding="async" loading="lazy" /><b>' + esc(p.name) + "</b>" +
           '<span class="codex-q q' + cx.bestQuality + '">' + QUALITY_ICON[cx.bestQuality] + " " + QUALITY_NAME[cx.bestQuality] + "</span>" +
           '<small>' + esc(p.lore) + "</small><i>×" + cx.count + "</i>";
       } else {
@@ -768,7 +785,7 @@
     // 공방 휘젓기
     var pad = $("#stir-pad");
     if (pad) {
-      pad.addEventListener("pointerdown", function (e) { brew.active = true; brew.lastAng = null; try { pad.setPointerCapture(e.pointerId); } catch (x) {} });
+      pad.addEventListener("pointerdown", function (e) { brew.active = true; brew.lastAng = null; brew.padRect = pad.getBoundingClientRect(); try { pad.setPointerCapture(e.pointerId); } catch (x) {} });
       pad.addEventListener("pointermove", onStirMove);
       pad.addEventListener("pointerup", endStir);
       pad.addEventListener("pointercancel", endStir);
