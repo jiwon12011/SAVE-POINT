@@ -166,6 +166,7 @@
                 <p class="levelup" id="save-levelup" hidden>⭐ LEVEL UP! ⭐</p>
               </div>
               <p class="save-badge" id="save-badge" hidden></p>
+              <p class="save-badge save-seed" id="save-seed" hidden></p>
               <p class="npc-save-line" id="npc-save-line" hidden></p>
             </div>
             <button class="ghost-action" data-open="records">기록 보기</button>
@@ -199,14 +200,83 @@
               <div class="record-stats" id="rec-stats"></div>
               <h4 class="record-title">칭호 도감 <small id="rec-badge-count"></small></h4>
               <div class="badge-grid" id="badge-grid"></div>
+              <button class="ghost-action" data-open="codex" style="margin-top:14px;">🧪 포션 도감 보기</button>
             </div>
+          </div>
+
+          <!-- 공방 (Workshop) -->
+          <div class="modal" id="modal-workshop">
+            <div class="modal-head"><span>마법사의 공방</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
+            <div class="modal-body">
+              <div class="ws-mentor">
+                <img id="workshop-mentor-img" src="assets/wizard-thinking.png" alt="" />
+                <p id="workshop-mentor-line">재료를 골라 포션을 만들어요.</p>
+              </div>
+
+              <div class="ws-request" id="workshop-request" hidden></div>
+
+              <h4 class="ws-title">내 재료</h4>
+              <div class="ws-materials" id="workshop-materials"></div>
+
+              <h4 class="ws-title">제조 가능한 포션</h4>
+              <div class="ws-potions" id="workshop-potions"></div>
+
+              <!-- 휘젓기 제조 오버레이 -->
+              <div class="brew-stage" id="brew-stage" hidden>
+                <button class="brew-cancel" id="brew-cancel" type="button" aria-label="취소">← 돌아가기</button>
+                <h3 id="brew-title">포션 제조</h3>
+                <div class="brew-ingredients" id="brew-ingredients"></div>
+                <div class="brew-flask" id="brew-flask">
+                  <div class="brew-liquid" id="brew-liquid"></div>
+                  <div class="stir-pad" id="stir-pad"><span class="stir-swirl">🌀</span></div>
+                </div>
+                <p class="stir-tip" id="stir-tip">플라스크 위를 빙글빙글 저어요.</p>
+                <button class="primary-action" id="brew-reduced-btn" hidden>제조하기</button>
+
+                <div class="brew-done" id="brew-done" hidden>
+                  <b id="brew-result-name">포션</b>
+                  <span class="brew-quality" id="brew-result-quality"></span>
+                  <span class="brew-reward" id="brew-result-reward"></span>
+                  <p class="brew-mentor" id="brew-result-mentor"></p>
+                  <button class="primary-action" id="brew-done-btn">완성! 선반에 올리기</button>
+                </div>
+              </div>
+            </div>
+            <button class="ghost-action" data-open="garden">🌱 텃밭으로</button>
+          </div>
+
+          <!-- 텃밭 (Garden) -->
+          <div class="modal" id="modal-garden">
+            <div class="modal-head"><span>나의 텃밭</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
+            <div class="modal-body">
+              <p class="garden-hint">씨앗을 심으면 <b>세이브할 때마다</b> 한 단계씩 자라요. 앱을 안 열어도 시들지 않아요. 🌿</p>
+              <div class="garden-plots" id="garden-plots"></div>
+              <h4 class="ws-title">보유 씨앗</h4>
+              <div class="garden-seeds" id="garden-seeds"></div>
+
+              <div class="seed-picker" id="seed-picker" hidden>
+                <div class="seed-picker-head"><span>심을 씨앗 고르기</span><button id="seed-picker-close" aria-label="닫기">✕</button></div>
+                <div class="seed-picker-list" id="seed-picker-list"></div>
+              </div>
+            </div>
+            <button class="ghost-action" data-open="workshop">🧪 공방으로</button>
+          </div>
+
+          <!-- 포션 도감 (Codex) -->
+          <div class="modal" id="modal-codex">
+            <div class="modal-head"><span>포션 도감 · <b id="codex-count">0 / 12</b></span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
+            <div class="modal-body">
+              <div class="codex-grid" id="codex-grid"></div>
+            </div>
+            <button class="ghost-action" data-open="workshop">🧪 공방으로</button>
           </div>
         </div>
 
         <nav class="bottom-nav" aria-label="하단 내비게이션">
           <button class="active" data-open="home"><img src="assets/nav-home.png" alt="" />홈</button>
           <button data-open="checkin"><img src="assets/nav-checkin.png" alt="" />체크인</button>
-          <button data-open="npc"><img src="assets/nav-npc.png" alt="" />NPC</button>
+          <button data-open="workshop"><span class="nav-emoji">🧪</span>공방<i class="nav-badge" id="workshop-badge" hidden>0</i></button>
+          <button data-open="garden"><span class="nav-emoji">🌱</span>텃밭</button>
           <button data-open="quest"><img src="assets/nav-quest.png" alt="" />퀘스트</button>
           <button data-open="records"><img src="assets/nav-records.png" alt="" />기록</button>
         </nav>
@@ -214,6 +284,7 @@
     </main>
     <script src="engine.js"></script>
     <script src="data.js"></script>
+    <script src="potion-data.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
