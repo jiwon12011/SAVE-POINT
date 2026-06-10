@@ -16,6 +16,7 @@
 | [캐릭터시트.md](docs/캐릭터시트.md) | NPC 캐릭터 시트 — 서사·외형·표정·말투·대사 (+ 부록 A: 힐러 1차 에셋 기준표) |
 | [대사풀.md](docs/대사풀.md) | NPC 5종 대사 뱅크 (LLM 폴백/다양성 풀) |
 | [NPC-반응규칙.md](docs/NPC-반응규칙.md) | 상태창 → NPC 추천·표정·대사 결정 규칙 |
+| [구현노트.md](docs/구현노트.md) | P0 동작 프로토타입 구현 기록 (구조·실행·UI 결정·검증) |
 | [data/fallback-dialogue.json](docs/data/fallback-dialogue.json) | 대사풀의 기계 판독용 JSON (앱이 직접 로드) |
 | [data/fallback-quests.json](docs/data/fallback-quests.json) | 퀘스트 폴백 템플릿 JSON — 모드별 메인/서브/금지 + 파라미터 |
 | [data/ailments.json](docs/data/ailments.json) | 상태이상 태그 마스터 — 중증 여부·NPC 신호·세계관 용어 |
