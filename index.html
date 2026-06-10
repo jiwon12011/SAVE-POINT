@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAVE POINT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Gugi&family=Gowun+Dodum&family=Quicksand:wght@600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="phone view-home" aria-label="SAVE POINT mobile prototype">
+        <div class="scene-bg"></div>
+        <div class="night-vignette"></div>
+
+        <header class="topbar">
+          <div>
+            <p class="date-label">6월 10일 수요일</p>
+            <h1>SAVE POINT</h1>
+          </div>
+          <button class="profile-chip" aria-label="프로필">
+            <span>Lv. 07</span>
+          </button>
+        </header>
+
+        <section class="save-banner">
+          <img src="assets/icon-save.png" alt="" />
+          <div>
+            <p>연속 세이브 4일</p>
+            <strong>잘 못 한 날도, 저장은 됩니다.</strong>
+          </div>
+        </section>
+
+        <section class="status-window active-view" data-view="home">
+          <div class="window-head">
+            <span>오늘의 상태창</span>
+            <b>Survival</b>
+          </div>
+          <div class="hero-row">
+            <div>
+              <p class="eyebrow">칭호</p>
+              <h2>마감 직전 생존자</h2>
+              <p class="copy">
+                HP와 MP가 낮은 날입니다. 오늘의 목표는 완성이 아니라, 다시 켤 수 있게
+                남겨두는 것.
+              </p>
+            </div>
+            <img class="crystal" src="assets/icon-save.png" alt="" />
+          </div>
+
+          <div class="stats">
+            <article>
+              <img src="assets/icon-hp.png" alt="" />
+              <div>
+                <span>HP</span>
+                <div class="meter"><i style="width: 42%"></i></div>
+              </div>
+              <b>2/4</b>
+            </article>
+            <article>
+              <img src="assets/icon-mp.png" alt="" />
+              <div>
+                <span>MP</span>
+                <div class="meter blue"><i style="width: 24%"></i></div>
+              </div>
+              <b>1/4</b>
+            </article>
+            <article>
+              <img src="assets/icon-quest.png" alt="" />
+              <div>
+                <span>FOCUS</span>
+                <div class="meter gold"><i style="width: 35%"></i></div>
+              </div>
+              <b>2/4</b>
+            </article>
+          </div>
+
+          <div class="ailments">
+            <span><img src="assets/icon-sleep.png" alt="" />수면 부족</span>
+            <span><img src="assets/icon-boss.png" alt="" />마감 공포</span>
+            <span><img src="assets/icon-notification.png" alt="" />알림 과부하</span>
+          </div>
+
+          <button class="primary-action" data-go="quest">퀘스트 받기</button>
+        </section>
+
+        <section class="checkin-panel app-view" data-view="checkin">
+          <div class="window-head">
+            <span>30초 체크인</span>
+            <b>Step 1</b>
+          </div>
+          <div class="ritual-icons">
+            <img src="assets/icon-hp.png" alt="" />
+            <img src="assets/icon-mp.png" alt="" />
+            <img src="assets/icon-quest.png" alt="" />
+          </div>
+          <div class="choice-grid">
+            <button class="selected">거의 쓰러짐</button>
+            <button>버티는 중</button>
+            <button>그럭저럭</button>
+            <button>꽤 괜찮음</button>
+          </div>
+          <label class="boss-input">
+            <span>오늘의 보스</span>
+            <input value="포트폴리오 정리" aria-label="오늘의 보스" />
+          </label>
+          <button class="primary-action" data-go="home">상태 저장</button>
+        </section>
+
+        <section class="quest-panel app-view" data-view="quest">
+          <div class="window-head">
+            <span>오늘의 퀘스트</span>
+            <b>0/3</b>
+          </div>
+          <article class="quest-card main-quest">
+            <img src="assets/icon-quest.png" alt="" />
+            <small>MAIN · 5분</small>
+            <h3>포트폴리오 파일을 딱 하나만 열기</h3>
+            <p>완성하려 하지 말고, 눈에 보이는 제목 하나만 확인합니다.</p>
+          </article>
+          <article class="quest-card forbid">
+            <img src="assets/icon-forbidden.png" alt="" />
+            <small>FORBIDDEN</small>
+            <h3>오늘 전체를 실패로 부르지 않기</h3>
+          </article>
+          <article class="quest-card boss">
+            <img src="assets/icon-boss.png" alt="" />
+            <small>TODAY'S BOSS</small>
+            <h3>포트폴리오 정리</h3>
+          </article>
+          <button class="primary-action" data-go="save">퀘스트 0개여도 세이브</button>
+        </section>
+
+        <section class="npc-panel app-view" data-view="npc">
+          <div class="window-head">
+            <span>NPC 상담소</span>
+            <b>추천</b>
+          </div>
+          <div class="npc-stage">
+            <img class="npc healer" src="assets/healer.png" alt="힐러 치비 캐릭터" />
+            <div class="speech">
+              <strong>힐러</strong>
+              <p>오늘은 여기까지 온 것만으로도 충분해요. 정말로요.</p>
+            </div>
+          </div>
+          <div class="npc-list">
+            <button class="npc-card selected">
+              <img src="assets/healer.png" alt="" />
+              <span>힐러</span>
+            </button>
+            <button class="npc-card">
+              <img src="assets/innkeeper.png" alt="" />
+              <span>여관주인</span>
+            </button>
+            <button class="npc-card locked">
+              <img src="assets/guildmaster.png" alt="" />
+              <span>길드마스터</span>
+            </button>
+            <button class="npc-card locked">
+              <img src="assets/rival.png" alt="" />
+              <span>라이벌</span>
+            </button>
+            <button class="npc-card locked">
+              <img src="assets/wizard.png" alt="" />
+              <span>마법사</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="save-panel app-view" data-view="save">
+          <img class="save-crystal" src="assets/icon-save.png" alt="" />
+          <h2>SAVED.</h2>
+          <p>오늘의 모험가가 저장되었습니다. 퀘스트 클리어가 없어도 이 기록은 사라지지 않아요.</p>
+          <div class="reward-row">
+            <span><img src="assets/icon-star-candy.png" alt="" />별사탕 +10</span>
+            <span><img src="assets/icon-hp.png" alt="" />회복값 +3</span>
+          </div>
+          <button class="primary-action" data-go="home">홈으로</button>
+        </section>
+
+        <nav class="bottom-nav" aria-label="하단 내비게이션">
+          <button class="active" data-go="home"><img src="assets/nav-home.png" alt="" />홈</button>
+          <button data-go="checkin"><img src="assets/nav-checkin.png" alt="" />체크인</button>
+          <button data-go="quest"><img src="assets/nav-quest.png" alt="" />퀘스트</button>
+          <button data-go="npc"><img src="assets/nav-npc.png" alt="" />NPC</button>
+        </nav>
+      </section>
+    </main>
+    <script src="script.js"></script>
+  </body>
+</html>
