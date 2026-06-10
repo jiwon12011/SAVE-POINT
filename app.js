@@ -6,13 +6,15 @@
 
   var state = {
     npc: "healer",
-    lastSave: null,
     streak: 4, stardust: 0, level: 7, xp: 40, xpMax: 100,
-    badges: {}, completedEver: 0, npcMet: {},
     /* 포션 연금술 */
-    materials: {}, seeds: {}, plots: [], potionCodex: {}, activeRequest: null, requestIndex: 0,
-    /* 일일 플래그 (정산/채집 가용) */
-    settledToday: false, foragedToday: {}
+    materials: {}, seeds: {}, plots: [], potionCodex: {},
+    /* 스토리 챕터 (NPC 방문 진행) — currentChapter: 진행 인덱스, chapterPhase: story→quest→done */
+    currentChapter: 0, chapterPhase: "story",
+    /* 마지막 챕터 이후 자유 의뢰(freeRequest) 루프 인덱스 */
+    requestIndex: 0,
+    /* 일일 플래그 (채집 가용) */
+    foragedToday: {}
   };
 
   var NPC_NAME = { healer: "힐러", innkeeper: "여관주인", guildmaster: "길드마스터", rival: "라이벌", wizard: "마법사" };
@@ -59,7 +61,7 @@
   var $ = function (s) { return document.querySelector(s); };
   var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
   function esc(s) { return String(s).replace(/[&<>"]/g, function (m) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m]; }); }
-  function byId(id) { var l = window.Engine.AILMENTS; for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+  function byId(id) { var l = (window.POTION_DATA && window.POTION_DATA.ailments) || []; for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
 
   /* ---------- 뷰 클래스 (배경 전환) ---------- */
   function setViewClass(name) {
@@ -95,6 +97,53 @@
         ? "도감을 모두 채웠어요. 완벽한 포션도 노려봐요. ✨"
         : "빛나는 장소를 탭해 채집하고, 공방에서 포션을 빚어요.";
     }
+  }
+
+  /* ---------- 스토리 챕터 (NPC 순차 방문) ---------- */
+  var CD = window.CHAPTER_DATA || { loopMode: "freeRequest", chapters: [] };
+  function chapters() { return CD.chapters || []; }
+  function isFreeMode() { return state.currentChapter >= chapters().length; }
+  function currentChapter() {
+    var list = chapters();
+    if (!list.length) return null;
+    return isFreeMode() ? null : list[state.currentChapter];
+  }
+  // 현재 챕터의 방문 NPC (자유 의뢰면 freeRequest 의뢰의 npc, 둘 다 없으면 healer)
+  function chapterNpc() {
+    var ch = currentChapter();
+    if (ch) return ch.npc;
+    var fr = freeRequestDef();
+    return (fr && fr.npc) || "healer";
+  }
+  // 마지막 챕터 후 자유 의뢰: PD.requests 순환 폴백
+  function freeRequestDef() {
+    var pool = PD.requests || [];
+    if (!pool.length) return null;
+    return pool[state.requestIndex % pool.length];
+  }
+  // 현재 챕터/자유의뢰를 통일된 형태로 — { npc, wantsPotion, wantsQuality, rewardStardust, rewardMaterial, rewardQty }
+  function activeQuest() {
+    var ch = currentChapter();
+    if (ch) return ch;
+    var fr = freeRequestDef();
+    if (!fr) return null;
+    return { npc: fr.npc, title: NPC_NAME[fr.npc] + "의 의뢰",
+      wantsPotion: fr.wantsPotion, wantsQuality: fr.wantsQuality,
+      rewardStardust: fr.rewardStardust, rewardMaterial: fr.rewardMaterial, rewardQty: fr.rewardQty, free: true };
+  }
+  // 홈/모달에서 "방문 NPC가 할 말 있음" — story 미열람(phase story) 또는 퀘스트 충족 대기(phase done)
+  function chapterHasNews() {
+    if (isFreeMode()) return state.chapterPhase === "done";
+    return state.chapterPhase === "story" || state.chapterPhase === "done";
+  }
+  // 제조 결과가 현재 퀘스트를 충족하면 phase를 done으로 (보상은 done 대사 후 1회)
+  function checkChapterFulfill(potionId, q) {
+    if (state.chapterPhase !== "quest") return false;
+    var quest = activeQuest();
+    if (!quest) return false;
+    if (quest.wantsPotion !== potionId || q < quest.wantsQuality) return false;
+    state.chapterPhase = "done";
+    return true;
   }
 
   function npcSprite(npc, expr) {
@@ -141,10 +190,11 @@
   function persist() {
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify({
+        npc: state.npc,
         streak: state.streak, stardust: state.stardust, level: state.level, xp: state.xp, xpMax: state.xpMax,
-        badges: state.badges, npcMet: state.npcMet, completedEver: state.completedEver,
-        materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex, activeRequest: state.activeRequest, requestIndex: state.requestIndex,
-        settledToday: state.settledToday, foragedToday: state.foragedToday
+        materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex,
+        currentChapter: state.currentChapter, chapterPhase: state.chapterPhase, requestIndex: state.requestIndex,
+        foragedToday: state.foragedToday
       }));
     } catch (e) {}
   }
@@ -153,13 +203,15 @@
       var s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
       if (!s) return false;
       state.streak = s.streak; state.stardust = s.stardust; state.level = s.level; state.xp = s.xp; state.xpMax = s.xpMax;
-      state.badges = s.badges || {}; state.npcMet = s.npcMet || {}; state.completedEver = s.completedEver || 0;
       // 포션 슬롯: 구버전 localStorage 호환(없으면 기본값)
       state.materials = s.materials || {}; state.seeds = s.seeds || {};
       state.plots = s.plots || []; state.potionCodex = s.potionCodex || {};
-      state.activeRequest = (typeof s.activeRequest === "undefined") ? null : s.activeRequest;
+      // 챕터 슬롯: 구버전 세이브엔 없으므로 0/story 기본
+      state.currentChapter = s.currentChapter || 0;
+      state.chapterPhase = s.chapterPhase || "story";
       state.requestIndex = s.requestIndex || 0;
-      state.settledToday = !!s.settledToday; state.foragedToday = s.foragedToday || {};
+      state.npc = s.npc || state.npc;
+      state.foragedToday = s.foragedToday || {};
       return true;
     } catch (e) { return false; }
   }
@@ -172,7 +224,7 @@
     if (name === "home") { closeModal(); return; }
     setViewClass(name);
     if (name === "npc") renderNpcModalContent();
-    if (name === "workshop") { ensureRequest(); renderWorkshop(); }
+    if (name === "workshop") renderWorkshop();
     if (name === "garden") renderGarden();
     if (name === "codex") renderPotionCodex();
     if (name === "shop") renderShop();
@@ -188,9 +240,14 @@
     updateHome();   // 홈 NPC·말풍선·배너 동기화(NPC 전환 반영)
   }
 
-  /* ---------- NPC 대화 모달 ---------- */
-  var NPC_AVAIL = ["healer", "innkeeper", "guildmaster", "rival", "wizard"];
+  /* ---------- NPC 대화 모달 (스토리 챕터: 순차 방문) ----------
+   * 수동 선택 폐기. 모달 진입 시 현재 챕터 phase에 따라 대사가 전개된다.
+   *  - story:  story[] 순서 진행 → 마지막에 의뢰 수락 버튼 → phase "quest"
+   *  - quest:  대기 안내 1줄 + 공방 유도 버튼
+   *  - done:   doneStory[] 진행 → 보상 지급 → currentChapter++ → 다음 챕터 story
+   */
   var npcDlgLines = [], npcDlgIdx = 0, npcDlgType = { timer: null, full: "", typing: false };
+  var npcDlgMode = "story";   // 이번 모달 세션이 보여주는 phase 스냅샷
 
   function typeIntoNpc(text) {
     var el = $("#npc-dialogue-text");
@@ -206,34 +263,112 @@
     }, 28);
   }
 
-  function buildNpcDialogueLines(npc) {
-    var lines = (GAME_LINES[npc] || GAME_LINES.healer).slice();
-    return lines.length ? lines : [{ text: "...", expr: "default" }];
+  // 현재 phase가 보여줄 대사 라인 배열
+  function chapterDialogueLines() {
+    var ch = currentChapter();
+    var phase = state.chapterPhase;
+    if (phase === "done") {
+      if (ch && ch.doneStory && ch.doneStory.length) return ch.doneStory.slice();
+      return [{ text: "고마워요. 덕분에 큰 도움이 됐어요.", expr: "joy" }];
+    }
+    if (phase === "quest") {
+      var quest = activeQuest();
+      var pn = quest ? potionById(quest.wantsPotion) : null;
+      var qn = quest ? QUALITY_NAME[quest.wantsQuality] : "";
+      var txt = pn ? ("아직 " + pn.name + "(" + qn + " 이상)을 기다리고 있어요. 공방에서 빚어와요. 🧪")
+                   : "공방에서 의뢰한 포션을 빚어와요. 🧪";
+      return [{ text: txt, expr: "thinking" }];
+    }
+    // story
+    if (ch && ch.story && ch.story.length) return ch.story.slice();
+    // 자유 의뢰(freeRequest) — 챕터 없음
+    var fr = freeRequestDef();
+    if (fr && fr.offerLines) return fr.offerLines.map(function (t) { return { text: t, expr: "default" }; });
+    return [{ text: "오늘도 잘 부탁해요, 연금술사.", expr: "default" }];
   }
 
   function renderNpcModalContent() {
-    var npc = state.npc || "healer";
+    var npc = chapterNpc();
+    state.npc = npc;
     var nameEl = $("#npc-modal-name"); if (nameEl) nameEl.textContent = NPC_NAME[npc];
     var plate = $("#npc-name-plate"); if (plate) plate.textContent = NPC_NAME[npc];
-    npcDlgLines = buildNpcDialogueLines(npc); npcDlgIdx = 0;
+    npcDlgMode = state.chapterPhase;
+    npcDlgLines = chapterDialogueLines(); npcDlgIdx = 0;
     var portrait = $("#npc-portrait"); if (portrait) portrait.src = npcSprite(npc, npcDlgLines[0].expr);
     typeIntoNpc(npcDlgLines[0].text);
+    // 새 손님이 처음 말 걸 때(스토리 단계) 그 NPC의 씨앗 1개 보장 드롭(세션당 1회)
+    if (state.chapterPhase === "story") {
+      var seed = dropNpcSeed(npc);
+      if (seed) { persist(); floatReward(portrait, "🌱 " + cropName(seed) + " 씨앗"); }
+    }
+    renderNpcAction();
+  }
 
-    var container = $("#npc-switch"); if (!container) return;
-    container.innerHTML = "";
-    NPC_AVAIL.forEach(function (npcId) {
-      var btn = document.createElement("button");
-      btn.className = "npc-card" + (npcId === npc ? " selected" : "");
-      btn.innerHTML = '<img src="assets/' + npcId + '-default.png" alt="" /><span>' + NPC_NAME[npcId] + "</span>";
-      btn.addEventListener("click", function () {
-        state.npc = npcId; state.npcMet[npcId] = true;
-        var seed = dropNpcSeed(npcId);   // NPC 씨앗 보장 드롭(세션당 1회, healer/innkeeper만 풀 보유)
-        renderNpcModalContent();
-        if (seed) floatReward($("#npc-portrait"), "🌱 " + cropName(seed) + " 씨앗");
-        persist();
+  // 대화창 하단의 행동 영역(의뢰 수락 / 공방으로 이동) — 대사 끝에서만 노출
+  function renderNpcAction() {
+    var box = $("#npc-action"); if (!box) return;
+    box.innerHTML = ""; box.hidden = true;
+    var atEnd = npcDlgIdx >= npcDlgLines.length - 1;
+    if (!atEnd) return;
+
+    if (npcDlgMode === "story") {
+      var quest = activeQuest();
+      if (!quest) return;
+      var pn = potionById(quest.wantsPotion);
+      var qn = QUALITY_NAME[quest.wantsQuality];
+      var info = document.createElement("p");
+      info.className = "npc-quest-line";
+      var ch = currentChapter();
+      info.textContent = "📜 " + (ch ? ch.questText : "")
+        + (ch ? "" : (pn ? (pn.name + " · " + qn + " 이상") : ""));
+      box.appendChild(info);
+      var meta = document.createElement("small");
+      meta.className = "npc-quest-meta";
+      meta.textContent = "요구: " + (pn ? pn.name : "?") + " · " + qn + " 이상 · 보상 별사탕 +" + quest.rewardStardust;
+      box.appendChild(meta);
+      var accept = document.createElement("button");
+      accept.type = "button"; accept.className = "npc-accept";
+      accept.textContent = "의뢰 수락 · 공방으로 🧪";
+      accept.addEventListener("click", function () {
+        state.chapterPhase = "quest"; persist();
+        openModal("workshop");
       });
-      container.appendChild(btn);
-    });
+      box.appendChild(accept);
+      box.hidden = false;
+    } else if (npcDlgMode === "quest") {
+      var go = document.createElement("button");
+      go.type = "button"; go.className = "npc-accept";
+      go.textContent = "공방으로 가기 🧪";
+      go.addEventListener("click", function () { openModal("workshop"); });
+      box.appendChild(go);
+      box.hidden = false;
+    } else if (npcDlgMode === "done") {
+      var next = document.createElement("button");
+      next.type = "button"; next.className = "npc-accept";
+      next.textContent = "다음 손님 맞이하기 ✨";
+      next.addEventListener("click", completeChapter);
+      box.appendChild(next);
+      box.hidden = false;
+    }
+  }
+
+  // done 대사 끝: 보상 1회 지급 → 다음 챕터로 진행 → 새 손님 story 시작
+  function completeChapter() {
+    var quest = activeQuest();
+    if (quest && state.chapterPhase === "done") {
+      state.stardust += quest.rewardStardust; gainXp(quest.rewardStardust);
+      if (quest.rewardMaterial) addMaterial(quest.rewardMaterial, quest.rewardQty || 1);
+      updateHud(); updateWorkshopBadge();
+      floatReward($("#npc-portrait"), "🎁 별사탕 +" + quest.rewardStardust);
+    }
+    // 다음 챕터로. 자유 의뢰면 의뢰 인덱스 순환.
+    if (isFreeMode()) { state.requestIndex = state.requestIndex + 1; }
+    else { state.currentChapter += 1; state.streak += 1; }
+    state.chapterPhase = "story";
+    persist();
+    // 새 손님 대사로 갱신
+    renderNpcModalContent();
+    updateRequestCard();
   }
 
   function advanceNpcDialogue() {
@@ -241,12 +376,19 @@
       clearInterval(npcDlgType.timer); npcDlgType.typing = false;
       var el = $("#npc-dialogue-text"); if (el) el.textContent = npcDlgType.full;
       var arrow = $("#npc-next-arrow"); if (arrow) arrow.classList.add("ready");
+      renderNpcAction();
       return;
     }
-    npcDlgIdx = (npcDlgIdx + 1) % npcDlgLines.length;
+    if (npcDlgIdx >= npcDlgLines.length - 1) {
+      // 마지막 라인에서 더 탭하면 행동 영역만 재노출(루프하지 않음)
+      renderNpcAction();
+      return;
+    }
+    npcDlgIdx += 1;
     var line = npcDlgLines[npcDlgIdx];
     var portrait = $("#npc-portrait"); if (portrait) portrait.src = npcSprite(state.npc || "healer", line.expr);
     typeIntoNpc(line.text);
+    renderNpcAction();
   }
 
   /* ---------- 홈 NPC ---------- */
@@ -264,9 +406,24 @@
     setTimeout(function () { npc.classList.remove("react"); }, 480);
   }
   function updateHome() {
-    var npc = state.npc || "healer";
+    // 방문 NPC = 현재 챕터(또는 자유 의뢰)의 NPC. state.npc를 동기화.
+    var npc = chapterNpc();
+    state.npc = npc;
     $("#home-npc-name").textContent = NPC_NAME[npc];
-    homeLines = (GAME_LINES[npc] || GAME_LINES.healer).slice();
+
+    // 할 말이 있으면(스토리 미열람·퀘스트 충족 대기) 말풍선 첫 줄을 안내로, 아니면 잡담.
+    var news = chapterHasNews();
+    var bubble = $("#home-bubble");
+    if (bubble) bubble.classList.toggle("has-news", news);
+    if (news) {
+      var ch = currentChapter();
+      var lead = (state.chapterPhase === "done")
+        ? "할 말이 있어 보여요. 탭해서 들어봐요. ✨"
+        : (ch ? ch.title + " · 손님이 찾아왔어요. 탭해서 말 걸어봐요. ✨" : "새 손님이 찾아왔어요. 탭해보세요. ✨");
+      homeLines = [{ text: lead, expr: state.chapterPhase === "done" ? "joy" : "default" }];
+    } else {
+      homeLines = (GAME_LINES[npc] || GAME_LINES.healer).slice();
+    }
     homeIdx = 0;
     setHomeSprite(homeLines[0].expr);
     typeInto($("#home-speech"), homeLines[0].text);
@@ -551,7 +708,7 @@
   }
 
   /* ---- 드롭 훅 ---- */
-  // NPC 전환 시 그 NPC의 씨앗 1개(세션당 NPC별 1회 보장)
+  // 새 손님(챕터 NPC)이 찾아올 때 그 NPC의 씨앗 1개(세션당 NPC별 1회 보장, healer/innkeeper만 풀 보유)
   var npcSeedGiven = {};
   function dropNpcSeed(npc) {
     if (npcSeedGiven[npc]) return null;
@@ -560,12 +717,6 @@
     var c = pool[Math.abs(state.streak + Object.keys(npcSeedGiven).length) % pool.length];
     addSeed(c, 1);
     return c;
-  }
-  // 출석: 세이브로 streak이 임계값에 도달하는 순간 씨앗 1개
-  function dropStreakSeed() {
-    var c = (PD.streakSeeds || {})[state.streak];
-    if (c) { addSeed(c, 1); return c; }
-    return null;
   }
   // 세이브 시 텃밭 한 단계 성장
   function growPlotsOnSave() {
@@ -742,44 +893,33 @@
   }
   function closeBrew() { $("#brew-stage").hidden = true; renderWorkshop(); }
 
-  /* ---- 의뢰 (정산 시 완료된 의뢰는 다음 의뢰로 순환) ---- */
-  function requestPool() { return (PD.requests && PD.requests.length) ? PD.requests : (PD.request ? [PD.request] : []); }
-  function currentRequestDef() {
-    var pool = requestPool(); if (!pool.length) return null;
-    return pool[state.requestIndex % pool.length];
-  }
-  function ensureRequest() {
-    if (state.activeRequest) return;
-    var r = currentRequestDef(); if (!r) return;
-    state.activeRequest = { id: r.id, npc: r.npc, wants: r.wantsPotion || r.wantsPotion, quality: r.wantsQuality, status: "open" };
-  }
-  // 정산 시: 완료된 의뢰면 다음 의뢰로 교체
-  function rotateRequestIfDone() {
-    if (state.activeRequest && state.activeRequest.status === "done") {
-      state.requestIndex = (state.requestIndex + 1) % Math.max(1, requestPool().length);
-      state.activeRequest = null;
-      ensureRequest();
-    }
-  }
+  /* ---- 의뢰 (스토리 챕터 = 현재 방문 NPC의 의뢰) ---- */
+  // 공방 의뢰 카드: 현재 챕터(또는 자유 의뢰)를 phase별로 보여준다.
   function updateRequestCard() {
     var wrap = $("#workshop-request"); if (!wrap) return;
-    var r = currentRequestDef(), ar = state.activeRequest;
-    if (!r || !ar) { wrap.hidden = true; return; }
+    var quest = activeQuest();
+    if (!quest) { wrap.hidden = true; return; }
+    var pn = potionById(quest.wantsPotion);
+    var qn = QUALITY_NAME[quest.wantsQuality];
+    var phase = state.chapterPhase;
+    var npc = quest.npc;
+    var ch = currentChapter();
+    var tagSuffix = phase === "done" ? " · 완료! 손님에게 가져가요" : phase === "story" ? " · 새 손님" : "";
+    var body = phase === "done"
+      ? "포션이 준비됐어요. 손님에게 전해주러 가요. ✨"
+      : (ch ? ch.questText : (pn ? (pn.name + "을 부탁해요.") : "의뢰를 기다리고 있어요."));
     wrap.hidden = false;
-    var done = ar.status === "done";
     wrap.innerHTML =
-      '<img class="req-npc" src="' + npcSprite(r.npc, done ? "joy" : "thinking") + '" alt="" />' +
-      '<div class="req-body"><span class="req-tag">' + NPC_NAME[r.npc] + "의 의뢰" + (done ? " · 완료 (정산하면 새 의뢰)" : "") + "</span>" +
-      "<p>" + esc(done ? r.doneLine : r.offerLines[0]) + "</p>" +
-      '<small>요구: ' + esc(potionById(r.wantsPotion).name) + " · 좋음 이상 · 보상 별사탕 +" + r.rewardStardust + "</small></div>";
+      '<img class="req-npc" src="' + npcSprite(npc, phase === "done" ? "joy" : "thinking") + '" alt="" />' +
+      '<div class="req-body"><span class="req-tag">' + NPC_NAME[npc] + "의 의뢰" + tagSuffix + "</span>" +
+      "<p>" + esc(body) + "</p>" +
+      '<small>요구: ' + esc(pn ? pn.name : "?") + " · " + qn + " 이상 · 보상 별사탕 +" + quest.rewardStardust + "</small></div>";
   }
+  // 제조 결과가 현재 의뢰를 충족하면 phase를 done으로(보상은 done 대사 후). 결과창 안내문 반환.
   function checkRequestFulfill(potionId, q) {
-    var ar = state.activeRequest, r = currentRequestDef();
-    if (!ar || !r || ar.status !== "open" || ar.wants !== potionId || q < ar.quality) return null;
-    ar.status = "done";
-    state.stardust += r.rewardStardust; gainXp(r.rewardStardust); updateHud();
-    addMaterial(r.rewardMaterial, r.rewardQty);
-    return "🎁 " + NPC_NAME[r.npc] + " 의뢰 완료! 별사탕 +" + r.rewardStardust + " · " + r.doneLine;
+    if (!checkChapterFulfill(potionId, q)) return null;
+    var quest = activeQuest();
+    return "🎁 " + NPC_NAME[quest.npc] + "의 의뢰 충족! 홈에서 " + NPC_NAME[quest.npc] + "에게 전해주고 보상을 받아요.";
   }
 
   /* ---- 텃밭(Garden) ---- */
@@ -919,18 +1059,15 @@
     var isNewDay = checkDailyReset();
 
     applyHomeTheme(); setViewClass("home");
-    ensurePlots(); ensureRequest();
+    ensurePlots();
 
     if (isNewDay) {
-      // 새 날: 별사탕·레벨·인벤토리는 유지, 채집 가용만 리셋(정산이 하던 일일 리셋을 날짜 기준으로 대체)
+      // 새 날: 별사탕·레벨·인벤토리·챕터 진행은 유지, 채집 가용만 리셋.
       state.foragedToday = {};
-      state.settledToday = false;       // 미사용이나 세이브 호환 위해 초기화
-      rotateRequestIfDone();            // 완료된 의뢰면 새 날에 다음 의뢰로 교체(정산이 하던 역할)
       if (restored) persist();
     }
     if (!restored) {
-      // 첫 방문: 데모 재료·씨앗(공방·텃밭이 비어 보이지 않게)
-      state.npcMet["healer"] = true;
+      // 첫 방문: 데모 재료·씨앗(공방·텃밭이 비어 보이지 않게). 첫 챕터의 의뢰 재료를 포함.
       ["sleep_deprivation", "deadline_fear", "notification_overload"].forEach(function (id) { addMaterial(id, 1); });
       addMaterial("tea", 1); addMaterial("walk", 1);
       addSeed("moonherb", 1); addSeed("dew_berry", 1);

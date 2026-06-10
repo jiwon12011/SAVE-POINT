@@ -3,6 +3,22 @@
  * 재료 id 네임스페이스: A축=ailment id(engine) · B축=recovery id · D축=cropId · 씨앗=seed_{cropId}
  */
 window.POTION_DATA = {
+  /* A축 — 상태이상(결정체) 마스터: id·표시이름·아이콘만. byId() 룩업용(구 engine.js에서 이관). */
+  ailments: [
+    { id: "sleep_deprivation",     name: "수면 부족",   icon: "ailment-sleep" },
+    { id: "deadline_fear",         name: "마감 공포",   icon: "ailment-deadline" },
+    { id: "escapism",              name: "현실 도피",   icon: "ailment-escape" },
+    { id: "caffeine_overload",     name: "카페인 과다", icon: "ailment-caffeine" },
+    { id: "focus_lost",            name: "집중력 실종", icon: "ailment-focus" },
+    { id: "notification_overload", name: "알림 과부하", icon: "ailment-notification" },
+    { id: "decision_paralysis",    name: "결정 장애",   icon: "ailment-decision" },
+    { id: "anxiety",               name: "불안",        icon: "ailment-anxiety" },
+    { id: "burnout",               name: "번아웃",      icon: "ailment-low-battery" },
+    { id: "social_drain",          name: "사람에 지침", icon: "ailment-social" },
+    { id: "hunger",                name: "허기",        icon: "ailment-hunger" },
+    { id: "messy_room",            name: "어질러진 방", icon: "ailment-messy-room" }
+  ],
+
   /* B축 — 작은 실천의 씨앗 (recoveryItem id 재사용, 이모지 아이콘) */
   recovery: {
     tea:        { name: "따뜻한 차", emoji: "🍵" },
@@ -48,14 +64,7 @@ window.POTION_DATA = {
     { id: "daily_distillate",     name: "오늘의 증류액",   ail: null,                    lore: "오늘의 상태를 한 병에 증류했다. 열어봐야 안다", rec: [],                              crops: {} }
   ],
 
-  /* 출석(streak) 씨앗 — 연속 세이브가 이 값에 도달하는 순간 1회 지급(보유 작물로 한정) */
-  streakSeeds: {
-    3: "dew_berry", 5: "clarity_moss", 7: "dreambell",
-    10: "compass_vine", 14: "signal_grass", 21: "void_lily",
-    30: "ghost_pepper_mild", 50: "foxfire_cap"
-  },
-
-  /* C축 — NPC 흔적 + 씨앗 (1차: healer/innkeeper만 활성, NPC 전환 시 보장 드롭) */
+  /* C축 — NPC 흔적 + 씨앗 (1차: healer/innkeeper만 활성, 새 손님이 찾아올 때 보장 드롭) */
   npcSeeds: {
     healer:    ["moonherb", "dreambell", "still_lavender"],
     innkeeper: ["dew_berry", "echo_thyme", "marsh_root"]
@@ -118,9 +127,6 @@ window.POTION_DATA = {
     seeds: ["moonherb", "dew_berry", "clarity_moss", "still_lavender"], seedCost: 18,
     materials: ["sleep_deprivation", "caffeine_overload", "focus_lost", "decision_paralysis"], materialCost: 15
   },
-
-  /* 잠자리 정산 보상 */
-  settle: { stardust: 15 },
 
   /* 마법사 멘토 공방 한 줄 대사 */
   mentorLines: {
