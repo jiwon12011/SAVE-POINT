@@ -665,6 +665,34 @@ h3 {
 }
 @keyframes floatUp { from { opacity: 1; transform: translate(-50%, 0) scale(1); } to { opacity: 0; transform: translate(-50%, -42px) scale(1.1); } }
 
+/* 레벨업 의식 오버레이 — 성장 보상 연출(1회·자동 제거) */
+.levelup-overlay {
+  position: absolute; inset: 0; z-index: 70;
+  display: grid; place-items: center; text-align: center;
+  background: radial-gradient(120% 90% at 50% 44%, rgba(40, 30, 56, 0.42), rgba(12, 10, 18, 0.62));
+  pointer-events: none; opacity: 1; transition: opacity 560ms ease;
+}
+.levelup-overlay.fade-out { opacity: 0; }
+.levelup-card { display: grid; gap: 6px; padding: 0 24px; }
+.levelup-tag {
+  font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 0.74rem; letter-spacing: 0.28em;
+  color: var(--gold); opacity: 0.92;
+}
+.levelup-lv {
+  font-family: "Gugi", sans-serif; font-size: 3.4rem; line-height: 1; color: var(--text);
+  text-shadow: 0 0 24px rgba(255, 214, 153, 0.55), 0 4px 18px rgba(0, 0, 0, 0.5);
+  animation: levelup-pop 620ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.levelup-title {
+  font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 1.05rem; color: var(--gold);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+@keyframes levelup-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* ============================ 포션 연금술 ============================ */
 .ws-title { font-family: "Quicksand", sans-serif; font-size: 0.82rem; color: var(--gold); margin: 16px 0 8px; letter-spacing: .02em; }
 .ws-empty { font-size: 0.78rem; color: var(--dim); padding: 8px 2px; }
@@ -793,6 +821,12 @@ h3 {
 .plot-dirt { font-size: 26px; }
 .plot-crop { width: 60px; height: 60px; object-fit: contain; }
 .plot.growing .plot-crop { transition: none; }
+/* 수확 가능 화분: "지금 거둘 수 있다"를 은은한 pulse glow로 알림 */
+.plot.ready .plot-crop { animation: harvest-ready-glow 1.6s ease-in-out infinite; }
+@keyframes harvest-ready-glow {
+  0%, 100% { filter: brightness(1) drop-shadow(0 0 2px rgba(168, 224, 160, 0.35)); }
+  50%      { filter: brightness(1.12) drop-shadow(0 0 10px rgba(168, 224, 160, 0.7)); }
+}
 .plot-label { font-size: 0.66rem; color: var(--text); }
 .plot-progress { font-size: 0.6rem; color: var(--dim); line-height: 1.2; }
 .plot-harvest {
@@ -954,6 +988,16 @@ h3 {
   font-size: 0.78rem; font-weight: 600; color: #2a1f10; line-height: 1.4;
   background: linear-gradient(135deg, rgba(255, 225, 171, 0.96), rgba(255, 214, 153, 0.96));
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+/* REDUCED 채집 획득 정적 토스트 (모션 끈 사용자 피드백) */
+.static-toast {
+  position: absolute; left: 50%; top: 96px; transform: translateX(-50%);
+  z-index: 62; max-width: 84%; text-align: center; pointer-events: none;
+  padding: 8px 16px; border-radius: 14px;
+  font-size: 0.8rem; font-weight: 700; color: #2a1f10; line-height: 1.4;
+  background: linear-gradient(135deg, rgba(255, 225, 171, 0.97), rgba(255, 214, 153, 0.97));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 
 /* ============================ 상점 (Shop) ============================ */

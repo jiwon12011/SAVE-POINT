@@ -165,8 +165,70 @@
     var leveled = false;
     while (state.xp >= state.xpMax) { state.xp -= state.xpMax; state.level += 1; state.xpMax += 20; leveled = true; }
     updateHud();
-    if (leveled) { var chip = $("#lv-chip"); chip.classList.remove("pop"); void chip.offsetWidth; chip.classList.add("pop"); }
+    if (leveled) {
+      var chip = $("#lv-chip"); chip.classList.remove("pop"); void chip.offsetWidth; chip.classList.add("pop");
+      levelUpRitual(state.level);
+    }
     return leveled;
+  }
+  /* 레벨에서 파생되는 칭호(저장 불필요 — 도감 완성 보상에서도 재활용) */
+  function titleForLevel(lv) {
+    if (lv >= 21) return "달의 정련사";
+    if (lv >= 13) return "밤의 연금술사";
+    if (lv >= 8) return "포션 사냥꾼";
+    if (lv >= 4) return "달빛 공방 조수";
+    return "새벽의 견습생";
+  }
+  /* 레벨업 "의식": .phone에 반투명 오버레이 1회 — 큰 Lv.N + 칭호 + 금빛 별 방사.
+   * 중복 방지(이미 떠 있으면 무시). 약 1.4초 후 fade-out, 2초 후 remove.
+   * REDUCED면 파티클 스킵 + 오버레이는 정적으로 잠깐만 표시(애니는 전역 미디어쿼리가 제거). */
+  function levelUpRitual(lv) {
+    var phone = $(".phone"); if (!phone) return;
+    if ($(".levelup-overlay")) return;   // 중복 생성 방지
+    var ov = document.createElement("div");
+    ov.className = "levelup-overlay";
+    ov.innerHTML =
+      '<div class="levelup-card">' +
+        '<span class="levelup-tag">LEVEL UP</span>' +
+        '<b class="levelup-lv">Lv.' + lv + "</b>" +
+        '<span class="levelup-title">' + esc(titleForLevel(lv)) + "</span>" +
+      "</div>";
+    phone.appendChild(ov);
+    if (!REDUCED) levelUpStarBurst();
+    setTimeout(function () { if (ov.parentNode) ov.classList.add("fade-out"); }, 1400);
+    setTimeout(function () { if (ov.parentNode) ov.parentNode.removeChild(ov); }, 2000);
+  }
+  /* 화면 중앙에서 8방향 금빛 ✦ 방사 — fly 풀(acquireFly/flyParticles/flyTick) 재활용, FLY_CAP 준수. */
+  function levelUpStarBurst() {
+    var phone = $(".phone"); if (!phone) return;
+    var pr = phone.getBoundingClientRect();
+    var cx0 = pr.width / 2, cy0 = pr.height / 2;
+    var dist = 96;
+    for (var a = 0; a < 8; a++) {
+      if (flyParticles.length >= FLY_CAP) break;
+      var ang = a * Math.PI / 4;
+      var x1 = cx0 + Math.cos(ang) * dist;
+      var y1 = cy0 + Math.sin(ang) * dist;
+      var el = acquireFly();
+      el.innerHTML = '<span style="color:var(--gold)">✦</span>';
+      el.style.opacity = "1";
+      el.style.transform = "translate(" + cx0.toFixed(1) + "px," + cy0.toFixed(1) + "px) scale(0.6)";
+      phone.appendChild(el);
+      var pdata = {
+        el: el, start: 0, dur: 640,
+        x0: cx0, y0: cy0, x1: x1, y1: y1,
+        cx: (cx0 + x1) / 2, cy: (cy0 + y1) / 2,
+        onDone: null
+      };
+      flyParticles.push(pdata);
+      (function (pd) {
+        setTimeout(function () {
+          var idx = flyParticles.indexOf(pd);
+          if (idx >= 0) { flyParticles.splice(idx, 1); releaseFly(pd.el); }
+        }, pd.dur + 300);
+      })(pdata);
+    }
+    if (!flyRAF) flyRAF = requestAnimationFrame(flyTick);
   }
   function floatReward(anchor, text) {
     if (REDUCED || !anchor) return;
@@ -449,6 +511,9 @@
       var qpn = q ? potionById(q.wantsPotion) : null;
       lead = qpn ? ("공방에서 " + qpn.name + "을(를) 빚어와요 🧪") : "공방에서 의뢰한 포션을 빚어와요 🧪";
       expr = "thinking";
+    } else if (allForagedToday()) {
+      lead = "오늘 채집은 끝났어요. 공방에서 포션을 빚어볼까요? 🧪";
+      expr = "relax";
     } else {
       var chat = (GAME_LINES[npc] || GAME_LINES.healer)[0];
       lead = chat.text; expr = chat.expr;
@@ -480,6 +545,14 @@
   var todaySpecial = getTodaySpecialScene();
   // 특별 씬별 보장 희귀 재료
   var SPECIAL_RARE = { forest: "dreambell", cave: "foxfire_cap", pond: "void_lily" };
+
+  /* 오늘 채집 가능한 모든 씬을 다 했는지 — 홈 idle 안내용 */
+  function allForagedToday() {
+    var keys = Object.keys((PD && PD.forage) || {});
+    if (!keys.length) return false;
+    for (var i = 0; i < keys.length; i++) { if (!state.foragedToday[keys[i]]) return false; }
+    return true;
+  }
 
   function forageAt(pid) {
     var f = (PD.forage || {})[pid];
@@ -660,6 +733,24 @@
     return matInfo(lead.id);
   }
 
+  /* 획득 loot 요약 텍스트 — "대표이름 외 N개 획득" / 1개면 "이름 획득" */
+  function lootSummary(loot) {
+    if (!loot || !loot.length) return "획득 없음";
+    var leadId = loot[0].id;
+    var leadName = loot[0].seed ? (cropName(leadId) + " 씨앗") : matInfo(leadId).name;
+    var extra = loot.length - 1;
+    return extra > 0 ? (leadName + " 외 " + extra + "개 획득") : (leadName + " 획득");
+  }
+  /* REDUCED 정적 토스트 — 홈 상단에 1.5초 표시 후 제거(애니 없음, 단일 인스턴스). */
+  function staticToast(text) {
+    var phone = $(".phone"); if (!phone) return;
+    var old = $(".static-toast"); if (old && old.parentNode) old.parentNode.removeChild(old);
+    var t = document.createElement("div");
+    t.className = "static-toast"; t.textContent = text;
+    phone.appendChild(t);
+    setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 1500);
+  }
+
   function markHotspotDone(btn) {
     btn.classList.add("done");
     btn.disabled = true;
@@ -674,7 +765,7 @@
     if (!loot) return;
     markHotspotDone(btn);
     popHud();
-    if (REDUCED) return;
+    if (REDUCED) { staticToast(lootSummary(loot)); return; }   // 모션 끈 사용자도 획득 피드백
     // 이하 순수 연출
     spawnRipple(btn, e);
     var icon = btn.querySelector(".hotspot-icon");
