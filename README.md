@@ -16,6 +16,7 @@
 | [대사풀.md](docs/대사풀.md) | NPC 5종 대사 뱅크 (LLM 폴백/다양성 풀) |
 | [NPC-반응규칙.md](docs/NPC-반응규칙.md) | 상태창 → NPC 추천·표정·대사 결정 규칙 |
 | [data/fallback-dialogue.json](docs/data/fallback-dialogue.json) | 대사풀의 기계 판독용 JSON (앱이 직접 로드) |
+| [data/fallback-quests.json](docs/data/fallback-quests.json) | 퀘스트 폴백 템플릿 JSON — 모드별 메인/서브/금지 + 파라미터 |
 
 ## 확정 사항
 - **형태:** 실제 모바일 앱 (Next.js + React + TS + Tailwind + Supabase + Capacitor)

@@ -1,0 +1,100 @@
+{
+  "version": "1.0",
+  "meta": {
+    "purpose": "퀘스트 폴백 템플릿. LLM 미연결(P0)·AI 실패·오프라인 시 규칙 엔진이 이 데이터로 메인/서브/금지 퀘스트 문구를 채운다.",
+    "source": "docs/기획.md §2-2(모드별 파라미터)·§2-3(하이브리드 변환·폴백)",
+    "howToUse": "1) 상태창 mode 로 modeParams 조회 → main/sub/forbidden 개수·timeBoxMin·rewardMultiplier 결정. 2) templates[mode] 에서 그 개수만큼 슬롯 채움. 3) boss_text 있으면 main 은 main_with_boss, 없으면 main_no_boss 사용. 4) 토큰 치환.",
+    "schemaPerItem": "{ title, flavor } — 기획 §2-3 의 quests 스키마(title·flavor)와 동일",
+    "selection": "결정론적 권장: index = hash(status_result_id + slotIndex) % pool.length. 같은 상태창=같은 퀘스트.",
+    "tokens": {
+      "{boss}": "오늘의 보스 텍스트(daily_checkins.boss_text). boss_text=null 이면 main_no_boss 사용 + forbidden 은 {boss} 미포함 항목만 선택",
+      "{time_box}": "modeParams[mode].timeBoxMin (분)"
+    },
+    "rewardNote": "각 퀘스트의 reward_stardust = 기본 보상 × modeParams[mode].rewardMultiplier (컨디션 나쁠수록 작은 행동의 가치를 올림)"
+  },
+  "modeParams": {
+    "survival": { "main": 1, "sub": 0, "forbidden": 2, "timeBoxMin": 5,  "rewardMultiplier": 1.5, "risk": "회피",     "route": "회복 전용" },
+    "easy":     { "main": 1, "sub": 1, "forbidden": 1, "timeBoxMin": 15, "rewardMultiplier": 1.2, "risk": "우회",     "route": "정리·준비" },
+    "normal":   { "main": 2, "sub": 2, "forbidden": 1, "timeBoxMin": 25, "rewardMultiplier": 1.0, "risk": "부분 직면", "route": "본업 1블록" },
+    "challenge":{ "main": 3, "sub": 2, "forbidden": 0, "timeBoxMin": 45, "rewardMultiplier": 0.9, "risk": "정면",     "route": "본업 다블록" }
+  },
+  "templates": {
+    "survival": {
+      "main_with_boss": [
+        { "title": "오늘은 회복 퀘스트", "flavor": "{boss}는 잠시 옆에 둬요. 오늘 메인은 물 한 잔 마시고 {time_box}분 눈 감기예요." },
+        { "title": "숨 고르기", "flavor": "{time_box}분만 화면에서 떨어져 있기. {boss}는 내일의 당신에게 넘겨도 돼요." }
+      ],
+      "main_no_boss": [
+        { "title": "오늘은 회복 퀘스트", "flavor": "물 한 잔 마시고 {time_box}분만 눈을 감아요. 그게 오늘의 전부예요." },
+        { "title": "숨 고르기", "flavor": "{time_box}분, 아무것도 안 하기. 그것도 완료예요." }
+      ],
+      "sub": [],
+      "forbidden": [
+        { "title": "완성 금지", "flavor": "오늘 뭔가를 끝내려 하지 않기. 시작도 안 해도 돼요.", "needsBoss": false },
+        { "title": "{boss} 손대기 금지", "flavor": "오늘 {boss}는 건드리지 않기. 회피도 전략이에요.", "needsBoss": true },
+        { "title": "자책 금지", "flavor": "못 한 걸 떠올리며 스스로를 탓하지 않기.", "needsBoss": false },
+        { "title": "밤샘·야식 금지", "flavor": "몸을 더 깎는 선택은 오늘 쉬어가기.", "needsBoss": false }
+      ]
+    },
+    "easy": {
+      "main_with_boss": [
+        { "title": "{boss} 살짝 열어보기", "flavor": "{boss}를 {time_box}분만 들여다보기. 손대지 않아도 '본 것'만으로 완료예요." },
+        { "title": "준비만 하기", "flavor": "{boss}에 필요한 것 하나만 꺼내두기. {time_box}분이면 충분해요." }
+      ],
+      "main_no_boss": [
+        { "title": "오늘 한 칸 정리", "flavor": "책상이든 마음이든 {time_box}분만 정리하기." },
+        { "title": "가벼운 한 걸음", "flavor": "오늘 신경 쓰이던 작은 일 하나, {time_box}분만 손대기." }
+      ],
+      "sub": [
+        { "title": "물 한 잔", "flavor": "지금 물 한 잔 마시기." },
+        { "title": "창문 열기", "flavor": "공기 한 번 바꾸기." },
+        { "title": "기지개", "flavor": "팔 한 번 쭉 펴기." }
+      ],
+      "forbidden": [
+        { "title": "몰아치기 금지", "flavor": "오늘 {boss}를 한 번에 끝내려 하지 않기.", "needsBoss": true },
+        { "title": "무한 스크롤 금지", "flavor": "쉬는 시간에 SNS 끝없이 넘기지 않기.", "needsBoss": false }
+      ]
+    },
+    "normal": {
+      "main_with_boss": [
+        { "title": "{boss} {time_box}분 정면", "flavor": "딱 {time_box}분만 {boss}에 정면으로. 타이머 켜고 시작." },
+        { "title": "{boss} 한 조각", "flavor": "{boss}를 한 조각으로 쪼개서 그 하나만 끝내기." },
+        { "title": "{boss} 첫 줄 떼기", "flavor": "{boss}의 가장 첫 부분만. 시작이 절반이에요." }
+      ],
+      "main_no_boss": [
+        { "title": "오늘의 본업 한 블록", "flavor": "가장 신경 쓰이는 일 하나에 {time_box}분." },
+        { "title": "미룬 일 하나", "flavor": "계속 미뤄둔 것 하나만 {time_box}분 집중." },
+        { "title": "오늘의 핵심 한 가지", "flavor": "오늘 꼭 하나면 되는 그 일에 {time_box}분." }
+      ],
+      "sub": [
+        { "title": "5분 정리", "flavor": "끝나고 책상 한 번 정리하기." },
+        { "title": "산책 한 바퀴", "flavor": "블록 사이 짧게 걷기." },
+        { "title": "할 일 한 줄", "flavor": "내일 할 것 한 줄만 적어두기." }
+      ],
+      "forbidden": [
+        { "title": "멀티태스킹 금지", "flavor": "{time_box}분 동안 다른 탭·알림 보지 않기.", "needsBoss": false },
+        { "title": "완벽주의 금지", "flavor": "{boss}를 '완벽하게' 하려 하지 않기. 끝내는 게 먼저.", "needsBoss": true }
+      ]
+    },
+    "challenge": {
+      "main_with_boss": [
+        { "title": "{boss} 정면 1블록", "flavor": "{time_box}분 풀집중으로 {boss} 정면 돌파." },
+        { "title": "{boss} 정면 2블록", "flavor": "한 블록 더. 잠깐 쉬고 {time_box}분 한 번 더." },
+        { "title": "{boss} 마무리", "flavor": "오늘 {boss}의 끝을 보기. 남은 건 정리만." },
+        { "title": "{boss} 다음 단계", "flavor": "{boss}에서 막혀 있던 다음 단계로 넘어가기." }
+      ],
+      "main_no_boss": [
+        { "title": "오늘의 큰 일", "flavor": "미뤄둔 가장 큰 일에 {time_box}분 블록 한 번." },
+        { "title": "오래 미룬 것", "flavor": "제일 무겁게 느껴지던 일, 오늘 {time_box}분 떼어내기." },
+        { "title": "한 단계 더", "flavor": "어제보다 한 칸만 더. {time_box}분 집중." },
+        { "title": "마무리 블록", "flavor": "끝나가는 일의 마지막 {time_box}분." }
+      ],
+      "sub": [
+        { "title": "기록 남기기", "flavor": "한 일 한 줄로 적어두기." },
+        { "title": "몸 풀기", "flavor": "블록 사이 스트레칭 한 번." },
+        { "title": "물·간식", "flavor": "에너지 보충 한 번." }
+      ],
+      "forbidden": []
+    }
+  }
+}
