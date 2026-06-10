@@ -8,7 +8,9 @@
     data: { quests: null, dialogue: null },
     checkin: { hp: null, mp: null, focus: null, ailments: [], boss: "포트폴리오 정리" },
     status: null, quests: null, npc: "healer",
-    completed: {}, questTotal: 0, streak: 4, stardust: 0
+    completed: {}, rewardedKeys: {}, questTotal: 0,
+    streak: 4, stardust: 0, level: 7, xp: 40, xpMax: 100,
+    badges: {}, completedEver: 0, npcMet: {}
   };
 
   var DEFAULT_CHECKIN = {
@@ -39,6 +41,20 @@
     wizard: ["default", "comfort", "joy", "cheer", "relax", "thinking"]
   };
   var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  var BADGES = [
+    { id: "first-save", name: "첫 세이브" },
+    { id: "no-zero-day", name: "포기하지 않은 자" },
+    { id: "survival-day", name: "버티는 자" },
+    { id: "comeback", name: "돌아온 모험가" },
+    { id: "boss-crown", name: "정면돌파자" },
+    { id: "seven-day", name: "7일 생존자" },
+    { id: "sleep-recovery", name: "침대와 동맹한 용사" },
+    { id: "focus-spark", name: "집중의 불씨" },
+    { id: "tea-break", name: "차 한 잔의 여유" },
+    { id: "gentle-warrior", name: "다정한 전사" },
+    { id: "room-key", name: "여관의 단골" },
+    { id: "star-candy-collector", name: "별사탕 수집가" }
+  ];
 
   var $ = function (s) { return document.querySelector(s); };
   var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -52,6 +68,43 @@
     return "assets/" + npc + "-" + e + ".png";
   }
 
+  /* ---------- HUD: 레벨/EXP/별사탕 + 보상 연출 ---------- */
+  function updateHud() {
+    $("#hud-lv").textContent = "Lv." + state.level;
+    $("#hud-xp").style.width = (state.xp / state.xpMax * 100) + "%";
+    $("#hud-stardust").textContent = state.stardust;
+  }
+  function gainXp(n) {
+    state.xp += n;
+    var leveled = false;
+    while (state.xp >= state.xpMax) { state.xp -= state.xpMax; state.level += 1; state.xpMax += 20; leveled = true; }
+    updateHud();
+    if (leveled) { var chip = $("#lv-chip"); chip.classList.remove("pop"); void chip.offsetWidth; chip.classList.add("pop"); }
+    return leveled;
+  }
+  function floatReward(anchor, text) {
+    if (REDUCED || !anchor) return;
+    var phone = $(".phone"); if (!phone) return;
+    var pr = phone.getBoundingClientRect(), ar = anchor.getBoundingClientRect();
+    var el = document.createElement("div");
+    el.className = "float-reward"; el.textContent = text;
+    el.style.left = (ar.left - pr.left + ar.width / 2) + "px";
+    el.style.top = (ar.top - pr.top + 8) + "px";
+    phone.appendChild(el);
+    setTimeout(function () { el.parentNode && el.parentNode.removeChild(el); }, 950);
+  }
+  function unlockBadges(done) {
+    var b = state.badges, s = state.status;
+    b["first-save"] = true; b["tea-break"] = true;
+    if (done === 0) b["no-zero-day"] = true;
+    if (s && s.mode === "survival") b["survival-day"] = true;
+    if (s && s.mode === "challenge") b["boss-crown"] = true;
+    if (state.streak >= 7) b["seven-day"] = true;
+    if (state.checkin.ailments.indexOf("sleep_deprivation") >= 0) b["sleep-recovery"] = true;
+    if (state.checkin.ailments.indexOf("focus_lost") >= 0) b["focus-spark"] = true;
+    if (state.stardust >= 50) b["star-candy-collector"] = true;
+  }
+
   /* ---------- 모달 ---------- */
   function setNav(name) {
     $$(".bottom-nav [data-open]").forEach(function (b) { b.classList.toggle("active", b.dataset.open === name); });
@@ -60,6 +113,7 @@
     if (name === "home") { closeModal(); return; }
     if (name === "status") renderStatus();
     if (name === "quest") renderQuests();
+    if (name === "records") renderRecords();
     if (name === "save") doSave();
     $("#modal-layer").hidden = false;
     $$(".modal").forEach(function (m) { m.classList.toggle("show", m.id === "modal-" + name); });
@@ -136,7 +190,7 @@
   /* ---------- 렌더: 퀘스트 ---------- */
   function renderQuests() {
     var q = state.quests, list = $("#quest-list"); if (!q) return;
-    list.innerHTML = ""; state.completed = {}; var total = 0;
+    list.innerHTML = ""; state.completed = {}; state.rewardedKeys = {}; var total = 0;
     q.main.forEach(function (it, i) { addQuest(list, "main", "MAIN · " + q.timeBox + "분", it, "m" + i); total++; });
     q.sub.forEach(function (it, i) { addQuest(list, "sub", "SUB", it, "s" + i); total++; });
     q.forbidden.forEach(function (it, i) { addQuest(list, "forbid", "FORBIDDEN", it, "f" + i); });
@@ -158,6 +212,11 @@
       card.addEventListener("click", function () {
         state.completed[key] = !state.completed[key];
         card.classList.toggle("done", state.completed[key]);
+        if (state.completed[key] && !state.rewardedKeys[key]) {
+          state.rewardedKeys[key] = true;
+          state.stardust += 5; gainXp(5);
+          floatReward(card, "+5 ⭐");
+        }
         updateQuestCount();
       });
     }
@@ -170,13 +229,42 @@
   function doSave() {
     var done = completedCount();
     var gained = 10 + done * 5;
-    state.stardust += gained; state.streak += 1;
+    var xpGain = 20 + done * 10;
+    state.stardust += gained; state.streak += 1; state.completedEver += done;
+    if (state.npc) state.npcMet[state.npc] = true;
+    var leveled = gainXp(xpGain);
+    unlockBadges(done);
+    updateHud();
     $("#save-stardust").textContent = "별사탕 +" + gained;
     $("#save-streak").textContent = "연속 " + state.streak + "일";
     $("#streak-line").textContent = "연속 세이브 " + state.streak + "일";
+    $("#save-lv").textContent = "Lv." + state.level;
+    $("#save-exp").textContent = "EXP +" + xpGain;
+    $("#save-xp").style.width = (state.xp / state.xpMax * 100) + "%";
+    $("#save-levelup").hidden = !leveled;
     $("#save-copy").textContent = done === 0
       ? "퀘스트 클리어가 없어도 이 기록은 사라지지 않아요. 오늘도 저장했어요."
       : done + "개의 퀘스트를 완료했어요. 좋은 하루였네요.";
+  }
+
+  /* ---------- 생존 기록 · 도감 ---------- */
+  function renderRecords() {
+    $("#rec-streak").textContent = state.streak;
+    var npcN = Object.keys(state.npcMet).length;
+    $("#rec-stats").innerHTML =
+      '<span><b>' + state.completedEver + '</b>완료 퀘스트</span>' +
+      '<span><b>' + npcN + '</b>만난 NPC</span>' +
+      '<span><b>' + state.stardust + '</b>별사탕</span>';
+    var grid = $("#badge-grid"); grid.innerHTML = ""; var unlocked = 0;
+    BADGES.forEach(function (bd) {
+      var on = !!state.badges[bd.id];
+      if (on) unlocked++;
+      var el = document.createElement("div");
+      el.className = "badge-item" + (on ? "" : " locked");
+      el.innerHTML = '<img src="assets/badge-' + bd.id + '.png" alt="" /><span>' + (on ? bd.name : "???") + "</span>";
+      grid.appendChild(el);
+    });
+    $("#rec-badge-count").textContent = unlocked + " / " + BADGES.length;
   }
 
   /* ---------- 체크인 ---------- */
@@ -232,7 +320,13 @@
 
   function init() {
     buildAilmentChips(); wire();
-    function useData(q, d) { state.data.quests = q; state.data.dialogue = d; applyCheckin(DEFAULT_CHECKIN); }
+    function useData(q, d) {
+      state.data.quests = q; state.data.dialogue = d;
+      applyCheckin(DEFAULT_CHECKIN);
+      state.badges["first-save"] = true; state.badges["tea-break"] = true; state.badges["survival-day"] = true;
+      state.npcMet["healer"] = true;
+      updateHud();
+    }
     if (window.SAVEPOINT_DATA) { useData(window.SAVEPOINT_DATA.quests, window.SAVEPOINT_DATA.dialogue); return; }
     Promise.all([
       fetch("docs/data/fallback-quests.json").then(function (r) { return r.json(); }),

@@ -24,7 +24,13 @@
             <h1>SAVE POINT</h1>
             <p class="tagline">오늘의 컨디션을 상태창으로. NPC가 당신의 하루를 읽어줘요.</p>
           </div>
-          <button class="profile-chip" aria-label="프로필"><span>Lv. 07</span></button>
+          <div class="hud">
+            <button class="lv-chip" id="lv-chip" aria-label="레벨">
+              <b id="hud-lv">Lv.7</b>
+              <span class="xp"><i id="hud-xp"></i></span>
+            </button>
+            <div class="star-chip"><img src="assets/icon-star-candy.png" alt="별사탕" /><b id="hud-stardust">0</b></div>
+          </div>
         </header>
 
         <section class="save-banner">
@@ -135,16 +141,35 @@
                 <span><img src="assets/icon-star-candy.png" alt="" /><b id="save-stardust">별사탕 +10</b></span>
                 <span><img src="assets/reward-streak.png" alt="" /><b id="save-streak">연속 5일</b></span>
               </div>
+              <div class="exp-block">
+                <div class="exp-head"><span id="save-lv">Lv.7</span><b id="save-exp">EXP +20</b></div>
+                <div class="exp-bar"><i id="save-xp"></i></div>
+                <p class="levelup" id="save-levelup" hidden>⭐ LEVEL UP! ⭐</p>
+              </div>
             </div>
             <button class="primary-action" data-close>홈으로</button>
+          </div>
+
+          <!-- 생존 기록 · 도감 -->
+          <div class="modal" id="modal-records">
+            <div class="modal-head"><span>생존 기록 · 도감</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
+            <div class="modal-body">
+              <div class="record-streak">
+                <img src="assets/reward-streak.png" alt="" />
+                <div><b id="rec-streak">4</b><span>일 연속 세이브</span></div>
+              </div>
+              <div class="record-stats" id="rec-stats"></div>
+              <h4 class="record-title">칭호 도감 <small id="rec-badge-count"></small></h4>
+              <div class="badge-grid" id="badge-grid"></div>
+            </div>
           </div>
         </div>
 
         <nav class="bottom-nav" aria-label="하단 내비게이션">
           <button class="active" data-open="home"><img src="assets/nav-home.png" alt="" />홈</button>
           <button data-open="checkin"><img src="assets/nav-checkin.png" alt="" />체크인</button>
-          <button data-open="status"><img src="assets/nav-status.png" alt="" />상태</button>
           <button data-open="quest"><img src="assets/nav-quest.png" alt="" />퀘스트</button>
+          <button data-open="records"><img src="assets/nav-records.png" alt="" />기록</button>
         </nav>
       </section>
     </main>
