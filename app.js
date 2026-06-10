@@ -244,18 +244,27 @@
   }
 
   function init() {
+    // 이벤트 연결은 데이터와 무관하게 항상 먼저 — 데이터가 없어도 네비게이션은 살아있게.
+    buildAilmentChips();
+    wire();
+
+    function useData(quests, dialogue) {
+      state.data.quests = quests;
+      state.data.dialogue = dialogue;
+      applyCheckin(DEFAULT_CHECKIN);
+    }
+
+    // 1순위: 임베드된 data.js (file:// 에서도 동작, 서버 불필요)
+    if (window.SAVEPOINT_DATA) {
+      useData(window.SAVEPOINT_DATA.quests, window.SAVEPOINT_DATA.dialogue);
+      return;
+    }
+    // 폴백: 서버로 띄운 경우 docs/data 에서 fetch
     Promise.all([
       fetch("docs/data/fallback-quests.json").then(function (r) { return r.json(); }),
       fetch("docs/data/fallback-dialogue.json").then(function (r) { return r.json(); })
-    ]).then(function (res) {
-      state.data.quests = res[0];
-      state.data.dialogue = res[1];
-      buildAilmentChips();
-      wire();
-      applyCheckin(DEFAULT_CHECKIN);
-    }).catch(function (e) {
-      console.error("데이터 로드 실패:", e);
-    });
+    ]).then(function (res) { useData(res[0], res[1]); })
+      .catch(function (e) { console.error("데이터 로드 실패 — data.js 확인:", e); });
   }
 
   function esc(s) { return String(s).replace(/[&<>"]/g, function (m) {
