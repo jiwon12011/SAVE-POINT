@@ -41,8 +41,10 @@
   // 보유한 표정 스프라이트 (없으면 폴백)
   var SPRITES = {
     healer: ["default", "comfort", "joy", "cheer", "relax", "embrace"],
-    innkeeper: ["default", "comfort", "joy", "relax", "welcome", "serving"],
-    guildmaster: ["default", "cheer"], rival: ["default", "comfort"], wizard: ["default", "cheer"]
+    innkeeper: ["default", "comfort", "joy", "relax", "welcome", "serving"], // cheer 없음 → joy 폴백
+    guildmaster: ["default", "comfort", "joy", "cheer", "relax", "strategy"],
+    rival: ["default", "comfort", "joy", "cheer", "relax", "protect"],
+    wizard: ["default", "comfort", "joy", "cheer", "relax", "thinking"]
   };
 
   var $ = function (s) { return document.querySelector(s); };
