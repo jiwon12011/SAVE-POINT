@@ -76,6 +76,11 @@ button {
   transition: background-image 220ms ease, opacity 220ms ease;
 }
 
+.phone.view-home .scene-bg {
+  background-image: url("assets/bg-status.png");
+  opacity: 0.66;
+}
+
 .phone.view-checkin .scene-bg {
   background-image: url("assets/bg-checkin.png");
 }
@@ -89,8 +94,8 @@ button {
 }
 
 .phone.view-npc .scene-bg {
-  background-image: url("assets/hero-inn.png");
-  opacity: 0.62;
+  background-image: url("assets/bg-dialogue.png");
+  opacity: 0.6;
 }
 
 .night-vignette {
@@ -608,6 +613,107 @@ h3 {
 .bottom-nav button.active {
   background: rgba(255, 255, 255, 0.13);
   color: var(--text);
+}
+
+/* ---- 체크인 스크롤 + 스탯 선택 ---- */
+.checkin-scroll {
+  max-height: 432px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+}
+.checkin-scroll::-webkit-scrollbar { width: 6px; }
+.checkin-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 999px; }
+
+.stat-pick { margin-bottom: 16px; }
+.pick-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-family: "Quicksand", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+.pick-label img { width: 24px; height: 24px; object-fit: contain; }
+
+.level-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+.level-row button {
+  min-height: 50px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.25;
+  transition: 140ms;
+}
+.level-row button.sel {
+  color: #251721;
+  border-color: transparent;
+  background: linear-gradient(135deg, #ffb6d9, #ffd699);
+  font-weight: 800;
+  transform: translateY(-1px);
+}
+
+.ailment-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 11px 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--muted);
+  font-size: 0.83rem;
+  transition: 140ms;
+}
+.chip img { width: 22px; height: 22px; object-fit: contain; }
+.chip.on {
+  border-color: rgba(233, 189, 125, 0.5);
+  background: rgba(233, 189, 125, 0.2);
+  color: #ffe1ab;
+}
+
+.ailments .ghost { border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.07); color: var(--muted); }
+
+/* ---- 퀘스트 스크롤 + 상태 ---- */
+.quest-scroll {
+  max-height: 430px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+.quest-scroll::-webkit-scrollbar { width: 6px; }
+.quest-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.16); border-radius: 999px; }
+
+.sub-quest { background: rgba(255, 255, 255, 0.08); }
+.quest-card.checkable { cursor: pointer; transition: 160ms; }
+.quest-card.checkable::after {
+  content: "";
+  position: absolute;
+  right: 16px;
+  top: 18px;
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transition: 160ms;
+}
+.quest-card.done { opacity: 0.62; }
+.quest-card.done h3 { text-decoration: line-through; }
+.quest-card.done::after {
+  border-color: transparent;
+  background: #9be59b url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23241421' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/15px no-repeat;
 }
 
 @keyframes floaty {
