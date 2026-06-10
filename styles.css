@@ -79,8 +79,28 @@ button {
 }
 
 .phone.view-home .scene-bg {
-  background-image: url("assets/bg-status.png");
+  background-image: url("assets/home-bg-rainy-inn.png");
   opacity: 0.66;
+}
+
+.phone.view-home.home-theme-fireplace .scene-bg {
+  background-image: url("assets/home-bg-fireplace.png");
+}
+
+.phone.view-home.home-theme-potion .scene-bg {
+  background-image: url("assets/home-bg-potion-counter.png");
+}
+
+.phone.view-home.home-theme-bedroom .scene-bg {
+  background-image: url("assets/home-bg-moon-bedroom.png");
+}
+
+.phone.view-home.home-theme-guild .scene-bg {
+  background-image: url("assets/home-bg-guild-desk.png");
+}
+
+.phone.view-home.home-theme-dawn .scene-bg {
+  background-image: url("assets/home-bg-dawn-restart.png");
 }
 
 .phone.view-checkin .scene-bg {

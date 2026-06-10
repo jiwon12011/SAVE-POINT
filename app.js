@@ -40,6 +40,8 @@
     rival: ["default", "comfort", "joy", "cheer", "relax", "protect"],
     wizard: ["default", "comfort", "joy", "cheer", "relax", "thinking"]
   };
+  var HOME_THEMES = ["rainy", "fireplace", "potion", "bedroom", "guild", "dawn"];
+  var homeTheme = HOME_THEMES[Math.floor(Math.random() * HOME_THEMES.length)];
   var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   var BADGES = [
     { id: "first-save", name: "첫 세이브" },
@@ -66,6 +68,13 @@
     var e = expr;
     if (have.indexOf(e) < 0) e = (e === "cheer" && have.indexOf("joy") >= 0) ? "joy" : "default";
     return "assets/" + npc + "-" + e + ".png";
+  }
+
+  function applyHomeTheme() {
+    var phone = $(".phone");
+    if (!phone) return;
+    HOME_THEMES.forEach(function (theme) { phone.classList.remove("home-theme-" + theme); });
+    phone.classList.add("home-theme-" + homeTheme);
   }
 
   /* ---------- HUD: 레벨/EXP/별사탕 + 보상 연출 ---------- */
@@ -366,6 +375,7 @@
         state.npcMet["healer"] = true;
       }
       updateHud();
+      applyHomeTheme();
     }
     if (window.SAVEPOINT_DATA) { useData(window.SAVEPOINT_DATA.quests, window.SAVEPOINT_DATA.dialogue); return; }
     Promise.all([
