@@ -215,7 +215,6 @@
   function openModal(name) {
     if (name === "home") { closeModal(); return; }
     setViewClass(name);
-    if (name === "npc") renderNpcModalContent();
     if (name === "workshop") renderWorkshop();
     if (name === "garden") renderGarden();
     if (name === "codex") renderPotionCodex();
@@ -238,23 +237,6 @@
    *  - quest:  대기 안내 1줄 + 공방 유도 버튼
    *  - done:   doneStory[] 진행 → 보상 지급 → currentChapter++ → 다음 챕터 story
    */
-  var npcDlgLines = [], npcDlgIdx = 0, npcDlgType = { timer: null, full: "", typing: false };
-  var npcDlgMode = "story";   // 이번 모달 세션이 보여주는 phase 스냅샷
-
-  function typeIntoNpc(text) {
-    var el = $("#npc-dialogue-text");
-    var arrow = $("#npc-next-arrow");
-    if (!el) return;
-    if (arrow) arrow.classList.remove("ready");
-    npcDlgType.full = text; clearInterval(npcDlgType.timer);
-    if (REDUCED) { el.textContent = text; npcDlgType.typing = false; if (arrow) arrow.classList.add("ready"); return; }
-    el.textContent = ""; npcDlgType.typing = true; var i = 0;
-    npcDlgType.timer = setInterval(function () {
-      el.textContent = npcDlgType.full.slice(0, ++i);
-      if (i >= npcDlgType.full.length) { clearInterval(npcDlgType.timer); npcDlgType.typing = false; if (arrow) arrow.classList.add("ready"); }
-    }, 28);
-  }
-
   // 현재 phase가 보여줄 대사 라인 배열
   function chapterDialogueLines() {
     var ch = currentChapter();
@@ -279,112 +261,35 @@
     return [{ text: "오늘도 잘 부탁해요, 연금술사.", expr: "default" }];
   }
 
-  function renderNpcModalContent() {
-    var npc = chapterNpc();
-    state.npc = npc;
-    var nameEl = $("#npc-modal-name"); if (nameEl) nameEl.textContent = NPC_NAME[npc];
-    var plate = $("#npc-name-plate"); if (plate) plate.textContent = NPC_NAME[npc];
-    npcDlgMode = state.chapterPhase;
-    npcDlgLines = chapterDialogueLines(); npcDlgIdx = 0;
-    var portrait = $("#npc-portrait"); if (portrait) portrait.src = npcSprite(npc, npcDlgLines[0].expr);
-    typeIntoNpc(npcDlgLines[0].text);
-    // 새 손님이 처음 말 걸 때(스토리 단계) 그 NPC의 씨앗 1개 보장 드롭(세션당 1회)
-    if (state.chapterPhase === "story") {
-      var seed = dropNpcSeed(npc);
-      if (seed) { persist(); floatReward(portrait, "🌱 " + cropName(seed) + " 씨앗"); }
-    }
-    renderNpcAction();
-  }
-
-  // 대화창 하단의 행동 영역(의뢰 수락 / 공방으로 이동) — 대사 끝에서만 노출
-  function renderNpcAction() {
-    var box = $("#npc-action"); if (!box) return;
-    box.innerHTML = ""; box.hidden = true;
-    var atEnd = npcDlgIdx >= npcDlgLines.length - 1;
-    if (!atEnd) return;
-
-    if (npcDlgMode === "story") {
-      var quest = activeQuest();
-      if (!quest) return;
-      var pn = potionById(quest.wantsPotion);
-      var qn = QUALITY_NAME[quest.wantsQuality];
-      var info = document.createElement("p");
-      info.className = "npc-quest-line";
-      var ch = currentChapter();
-      info.textContent = "📜 " + (ch ? ch.questText : "")
-        + (ch ? "" : (pn ? (pn.name + " · " + qn + " 이상") : ""));
-      box.appendChild(info);
-      var meta = document.createElement("small");
-      meta.className = "npc-quest-meta";
-      meta.textContent = "요구: " + (pn ? pn.name : "?") + " · " + qn + " 이상 · 보상 별사탕 +" + quest.rewardStardust;
-      box.appendChild(meta);
-      var accept = document.createElement("button");
-      accept.type = "button"; accept.className = "npc-accept";
-      accept.textContent = "의뢰 수락 · 공방으로 🧪";
-      accept.addEventListener("click", function () {
-        state.chapterPhase = "quest"; persist();
-        openModal("workshop");
-      });
-      box.appendChild(accept);
-      box.hidden = false;
-    } else if (npcDlgMode === "quest") {
-      var go = document.createElement("button");
-      go.type = "button"; go.className = "npc-accept";
-      go.textContent = "공방으로 가기 🧪";
-      go.addEventListener("click", function () { openModal("workshop"); });
-      box.appendChild(go);
-      box.hidden = false;
-    } else if (npcDlgMode === "done") {
-      var next = document.createElement("button");
-      next.type = "button"; next.className = "npc-accept";
-      next.textContent = "다음 손님 맞이하기 ✨";
-      next.addEventListener("click", completeChapter);
-      box.appendChild(next);
-      box.hidden = false;
-    }
-  }
-
-  // done 대사 끝: 보상 1회 지급 → 다음 챕터로 진행 → 새 손님 story 시작
+  // done 대사 끝: 보상 1회 지급 → 다음 챕터로 진행 → 홈 안내(새 손님) 갱신
   function completeChapter() {
     var quest = activeQuest();
     if (quest && state.chapterPhase === "done") {
       state.stardust += quest.rewardStardust; gainXp(quest.rewardStardust);
       if (quest.rewardMaterial) addMaterial(quest.rewardMaterial, quest.rewardQty || 1);
       updateHud(); updateWorkshopBadge();
-      floatReward($("#npc-portrait"), "🎁 별사탕 +" + quest.rewardStardust);
+      floatReward($("#home-npc"), "🎁 별사탕 +" + quest.rewardStardust);
     }
     // 다음 챕터로. 자유 의뢰면 의뢰 인덱스 순환.
     if (isFreeMode()) { state.requestIndex = state.requestIndex + 1; }
     else { state.currentChapter += 1; state.streak += 1; }
     state.chapterPhase = "story";
     persist();
-    // 새 손님 대사로 갱신
-    renderNpcModalContent();
+    // 인씬 대화 종료 → 새 손님 안내가 말풍선에 뜨도록 홈 갱신
+    conv.active = false;
+    updateHome();
     updateRequestCard();
   }
 
-  function advanceNpcDialogue() {
-    if (npcDlgType.typing) {
-      clearInterval(npcDlgType.timer); npcDlgType.typing = false;
-      var el = $("#npc-dialogue-text"); if (el) el.textContent = npcDlgType.full;
-      var arrow = $("#npc-next-arrow"); if (arrow) arrow.classList.add("ready");
-      renderNpcAction();
-      return;
-    }
-    if (npcDlgIdx >= npcDlgLines.length - 1) {
-      // 마지막 라인에서 더 탭하면 행동 영역만 재노출(루프하지 않음)
-      renderNpcAction();
-      return;
-    }
-    npcDlgIdx += 1;
-    var line = npcDlgLines[npcDlgIdx];
-    var portrait = $("#npc-portrait"); if (portrait) portrait.src = npcSprite(state.npc || "healer", line.expr);
-    typeIntoNpc(line.text);
-    renderNpcAction();
-  }
-
-  /* ---------- 홈 NPC ---------- */
-  var homeLines = [], homeIdx = 0, homeType = { timer: null, full: "", typing: false };
+  /* ---------- 홈 NPC: 인씬 대화 (팝업 폐기) ----------
+   * 말풍선에서 현재 챕터 phase 대사를 전개한다.
+   *  - story: ch.story[] 진행 → 끝에서 의뢰 수락 버튼(→quest, 공방 페이지)
+   *  - quest: 대기 안내 → "공방으로 가기" 버튼
+   *  - done:  ch.doneStory[] 진행 → "다음 손님 맞이하기"(completeChapter)
+   * idle(대화 아님): updateHome가 안내/잡담 한 줄을 말풍선에 띄움.
+   */
+  var conv = { lines: [], idx: 0, mode: null, active: false };
+  var homeType = { timer: null, full: "", typing: false };
 
   function setHomeSprite(expr) {
     $("#home-npc").src = npcSprite(state.npc, expr);
@@ -397,32 +302,9 @@
     npc.classList.remove("react"); void npc.offsetWidth; npc.classList.add("react");
     setTimeout(function () { npc.classList.remove("react"); }, 480);
   }
-  function updateHome() {
-    // 방문 NPC = 현재 챕터(또는 자유 의뢰)의 NPC. state.npc를 동기화.
-    var npc = chapterNpc();
-    state.npc = npc;
-    $("#home-npc-name").textContent = NPC_NAME[npc];
 
-    // 할 말이 있으면(스토리 미열람·퀘스트 충족 대기) 말풍선 첫 줄을 안내로, 아니면 잡담.
-    var news = chapterHasNews();
-    var bubble = $("#home-bubble");
-    if (bubble) bubble.classList.toggle("has-news", news);
-    if (news) {
-      var ch = currentChapter();
-      var lead = (state.chapterPhase === "done")
-        ? "할 말이 있어 보여요. 탭해서 들어봐요. ✨"
-        : (ch ? ch.title + " · 손님이 찾아왔어요. 탭해서 말 걸어봐요. ✨" : "새 손님이 찾아왔어요. 탭해보세요. ✨");
-      homeLines = [{ text: lead, expr: state.chapterPhase === "done" ? "joy" : "default" }];
-    } else {
-      homeLines = (GAME_LINES[npc] || GAME_LINES.healer).slice();
-    }
-    homeIdx = 0;
-    setHomeSprite(homeLines[0].expr);
-    typeInto($("#home-speech"), homeLines[0].text);
-    updateBanner();
-    initSceneHotspots();   // 채집 핫스팟 wire + done 상태 반영
-  }
   function typeInto(el, text) {
+    if (!el) return;
     homeType.full = text; clearInterval(homeType.timer);
     if (REDUCED) { el.textContent = text; homeType.typing = false; return; }
     el.textContent = ""; homeType.typing = true; var i = 0;
@@ -431,12 +313,126 @@
       if (i >= homeType.full.length) { clearInterval(homeType.timer); homeType.typing = false; }
     }, 24);
   }
-  function homeTalk() {
-    if (homeType.typing) { clearInterval(homeType.timer); $("#home-speech").textContent = homeType.full; homeType.typing = false; return; }
-    if (!homeLines.length) return;
-    homeIdx = (homeIdx + 1) % homeLines.length;
-    setHomeSprite(homeLines[homeIdx].expr);
-    typeInto($("#home-speech"), homeLines[homeIdx].text);
+
+  /* 인씬 대화 시작: 현재 phase 대사 첫 줄부터 */
+  function startConv() {
+    var npc = chapterNpc();
+    state.npc = npc;
+    $("#home-npc-name").textContent = NPC_NAME[npc];
+    conv.mode = state.chapterPhase;
+    conv.lines = chapterDialogueLines();
+    conv.idx = 0;
+    conv.active = true;
+    // 새 손님이 처음 말 걸 때(스토리 단계) 그 NPC 씨앗 1개 보장 드롭(세션당 1회)
+    if (state.chapterPhase === "story") {
+      var seed = dropNpcSeed(npc);
+      if (seed) { persist(); floatReward($("#home-npc"), "🌱 " + cropName(seed) + " 씨앗"); }
+    }
+    showConvLine();
+  }
+  function showConvLine() {
+    var line = conv.lines[conv.idx] || { text: "...", expr: "default" };
+    setHomeSprite(line.expr);
+    typeInto($("#home-speech"), line.text);
+    var atEnd = conv.idx >= conv.lines.length - 1;
+    var next = $("#bubble-next");
+    if (next) next.hidden = atEnd;
+    if (atEnd) renderBubbleAction();
+    else { var ba = $("#bubble-action"); if (ba) { ba.hidden = true; ba.innerHTML = ""; } }
+  }
+  /* 말풍선 탭/NPC 탭: 타이핑 중이면 완성, 마지막이면 액션 유지, 아니면 다음 줄 */
+  function advanceConv() {
+    if (homeType.typing) {
+      clearInterval(homeType.timer); homeType.typing = false;
+      $("#home-speech").textContent = homeType.full;
+      if (conv.idx >= conv.lines.length - 1) { var nx = $("#bubble-next"); if (nx) nx.hidden = true; renderBubbleAction(); }
+      return;
+    }
+    if (conv.idx >= conv.lines.length - 1) { renderBubbleAction(); return; }
+    conv.idx += 1;
+    showConvLine();
+  }
+  /* 말풍선 하단 행동 영역: phase별 버튼 (기존 renderNpcAction 로직 이전) */
+  function renderBubbleAction() {
+    var box = $("#bubble-action"); if (!box) return;
+    box.innerHTML = ""; box.hidden = true;
+    if (conv.idx < conv.lines.length - 1) return;
+
+    if (conv.mode === "story") {
+      var quest = activeQuest();
+      if (!quest) return;
+      var pn = potionById(quest.wantsPotion);
+      var qn = QUALITY_NAME[quest.wantsQuality];
+      var ch = currentChapter();
+      var info = document.createElement("p");
+      info.className = "bubble-quest-line";
+      info.textContent = "📜 " + (ch ? ch.questText : (pn ? (pn.name + " · " + qn + " 이상") : ""));
+      box.appendChild(info);
+      var meta = document.createElement("small");
+      meta.className = "bubble-quest-meta";
+      meta.textContent = "요구: " + (pn ? pn.name : "?") + " · " + qn + " 이상 · 보상 별사탕 +" + quest.rewardStardust;
+      box.appendChild(meta);
+      var accept = document.createElement("button");
+      accept.type = "button"; accept.className = "bubble-accept";
+      accept.textContent = "수락하고 공방으로 🧪";
+      accept.addEventListener("click", function () {
+        state.chapterPhase = "quest"; persist();
+        conv.active = false;
+        openModal("workshop");
+      });
+      box.appendChild(accept);
+      box.hidden = false;
+    } else if (conv.mode === "quest") {
+      var go = document.createElement("button");
+      go.type = "button"; go.className = "bubble-accept";
+      go.textContent = "공방으로 가기 🧪";
+      go.addEventListener("click", function () { conv.active = false; openModal("workshop"); });
+      box.appendChild(go);
+      box.hidden = false;
+    } else if (conv.mode === "done") {
+      var nextBtn = document.createElement("button");
+      nextBtn.type = "button"; nextBtn.className = "bubble-accept";
+      nextBtn.textContent = "다음 손님 맞이하기 ✨";
+      nextBtn.addEventListener("click", completeChapter);
+      box.appendChild(nextBtn);
+      box.hidden = false;
+    }
+  }
+
+  function updateHome() {
+    // 방문 NPC = 현재 챕터(또는 자유 의뢰)의 NPC. state.npc를 동기화.
+    var npc = chapterNpc();
+    state.npc = npc;
+    $("#home-npc-name").textContent = NPC_NAME[npc];
+    // 홈으로 돌아오면 대화 세션 리셋(idle 안내로 복귀)
+    conv.active = false;
+    var ba = $("#bubble-action"); if (ba) { ba.hidden = true; ba.innerHTML = ""; }
+    var nx = $("#bubble-next"); if (nx) nx.hidden = true;
+
+    // 할 말이 있으면(스토리 미열람·퀘스트 충족 대기) 안내 한 줄, 아니면 잡담 한 줄.
+    var news = chapterHasNews();
+    var bubble = $("#home-bubble");
+    if (bubble) bubble.classList.toggle("has-news", news);
+    var lead, expr;
+    if (news) {
+      var ch = currentChapter();
+      lead = (state.chapterPhase === "done")
+        ? "손님이 기다려요. 탭해서 포션을 전해줘요. ✨"
+        : (ch ? ch.title + " · 손님이 찾아왔어요. 탭해서 말 걸어봐요. ✨" : "새 손님이 찾아왔어요. 탭해보세요. ✨");
+      expr = state.chapterPhase === "done" ? "joy" : "default";
+    } else if (state.chapterPhase === "quest") {
+      var q = activeQuest();
+      var qpn = q ? potionById(q.wantsPotion) : null;
+      lead = qpn ? ("공방에서 " + qpn.name + "을(를) 빚어와요 🧪") : "공방에서 의뢰한 포션을 빚어와요 🧪";
+      expr = "thinking";
+    } else {
+      var chat = (GAME_LINES[npc] || GAME_LINES.healer)[0];
+      lead = chat.text; expr = chat.expr;
+    }
+    setHomeSprite(expr);
+    typeInto($("#home-speech"), lead);
+    updateBanner();
+    initSceneHotspots();   // 채집 핫스팟 wire + done 상태 반영
   }
 
   /* ---------- 채집 (forage) — 홈 씬 핫스팟 터치 ----------
@@ -1014,16 +1010,19 @@
   /* ---------- init ---------- */
   function wire() {
     // 공방/텃밭은 하단 네비로(중복 제거), 채집은 씬 핫스팟 터치로.
-    // 홈 NPC 탭 → 점프 반응 후 NPC 대화 모달
-    $("#home-npc").addEventListener("click", function () { reactHomeNpc(); openModal("npc"); });
-    $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reactHomeNpc(); openModal("npc"); } });
-    // 홈 말풍선 탭 → 그 자리에서 다음 대사 (NPC와 잡담)
-    var bubble = $("#home-bubble"); if (bubble) bubble.addEventListener("click", homeTalk);
-    // NPC 대화창 탭 → 다음 대사
-    var dlgBox = $("#npc-dialogue-box");
-    if (dlgBox) {
-      dlgBox.addEventListener("click", advanceNpcDialogue);
-      dlgBox.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); advanceNpcDialogue(); } });
+    // 홈 NPC/말풍선 탭 → 점프 반응 후 인씬 대화 시작/진행
+    function talk() { reactHomeNpc(); if (conv.active) advanceConv(); else startConv(); }
+    function talkKey(e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); talk(); } }
+    var npcEl = $("#home-npc");
+    if (npcEl) { npcEl.addEventListener("click", talk); npcEl.addEventListener("keydown", talkKey); }
+    var bubble = $("#home-bubble");
+    if (bubble) {
+      bubble.addEventListener("click", function (e) {
+        // 액션 버튼 클릭은 버블 advance로 가로채지 않음
+        if (e.target.closest && e.target.closest(".bubble-action")) return;
+        talk();
+      });
+      bubble.addEventListener("keydown", talkKey);
     }
     // 공방 휘젓기
     var pad = $("#stir-pad");

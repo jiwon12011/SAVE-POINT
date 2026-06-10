@@ -52,9 +52,11 @@
               <button class="hotspot" data-place="cave"   style="--hx:88%;--hy:38%" aria-label="안개 동굴 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">🔮</span></button>
               <button class="hotspot" data-place="pond"   style="--hx:13%;--hy:84%" aria-label="공허 연못 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">💧</span></button>
             </div>
-            <div class="home-bubble" id="home-bubble">
+            <div class="home-bubble" id="home-bubble" role="button" tabindex="0" aria-label="대화 계속">
               <strong id="home-npc-name">힐러</strong>
               <p id="home-speech">탭하면 말을 걸 수 있어요.</p>
+              <div class="bubble-action" id="bubble-action" hidden></div>
+              <span class="bubble-next" id="bubble-next" hidden>▼ 탭해서 계속</span>
             </div>
             <img class="home-npc" id="home-npc" src="assets/healer-default.png" alt="NPC"
                  tabindex="0" role="button" aria-label="NPC에게 말 걸기" />
@@ -64,22 +66,6 @@
         <!-- 팝업(모달) 레이어 -->
         <div class="modal-layer" id="modal-layer" hidden>
           <div class="modal-backdrop" data-close></div>
-
-          <!-- NPC 대화 -->
-          <div class="modal" id="modal-npc">
-            <div class="modal-head"><span id="npc-modal-name">힐러</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
-            <div class="modal-body" style="display:flex;flex-direction:column;padding-bottom:0;">
-              <div class="npc-scene">
-                <img class="npc-portrait" id="npc-portrait" src="assets/healer-default.png" alt="" />
-                <div class="dialogue-box" id="npc-dialogue-box" role="button" tabindex="0" aria-label="대화 계속">
-                  <span class="name-plate" id="npc-name-plate">힐러</span>
-                  <p class="dialogue-text" id="npc-dialogue-text">...</p>
-                  <span class="next-arrow" id="npc-next-arrow">▼ 탭해서 계속</span>
-                </div>
-              </div>
-              <div class="npc-action" id="npc-action" hidden></div>
-            </div>
-          </div>
 
           <!-- 상점 (Shop) -->
           <div class="modal" id="modal-shop">
