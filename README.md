@@ -13,8 +13,9 @@
 |---|---|
 | [기획.md](docs/기획.md) | 제품 기획서 — 왜 쓰는가 · 사용자 흐름 · 규칙 엔진 · 데이터 모델 · 화면 10종 · Cozy RPG 디자인 시스템 · 로드맵 · 리뷰 보강 |
 | [캐릭터시트.md](docs/캐릭터시트.md) | NPC 캐릭터 시트 — 서사·외형·표정·말투·대사 (+ 부록 A: 힐러 1차 에셋 기준표) |
-| [대사풀.md](docs/대사풀.md) | MVP NPC 2종 대사 뱅크 (LLM 폴백/다양성 풀) |
+| [대사풀.md](docs/대사풀.md) | NPC 5종 대사 뱅크 (LLM 폴백/다양성 풀) |
 | [NPC-반응규칙.md](docs/NPC-반응규칙.md) | 상태창 → NPC 추천·표정·대사 결정 규칙 |
+| [data/fallback-dialogue.json](docs/data/fallback-dialogue.json) | 대사풀의 기계 판독용 JSON (앱이 직접 로드) |
 
 ## 확정 사항
 - **형태:** 실제 모바일 앱 (Next.js + React + TS + Tailwind + Supabase + Capacitor)
