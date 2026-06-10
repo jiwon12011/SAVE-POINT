@@ -40,18 +40,11 @@
               <span class="xp"><i id="hud-xp"></i></span>
             </button>
             <div class="star-chip"><img src="assets/icon-star-candy.png" alt="별사탕" /><b id="hud-stardust">0</b></div>
+            <div class="star-chip codex-chip" aria-label="포션 도감"><span class="codex-ic">📖</span><b id="codex-prog">0/12</b></div>
           </div>
         </header>
 
-        <section class="save-banner" id="save-banner-sec">
-          <img src="assets/icon-save.png" alt="" id="banner-icon" />
-          <div style="flex:1;min-width:0;">
-            <p id="streak-line">포션 도감 0 / 12</p>
-            <strong id="banner-msg">별사탕으로 채집·제조해 도감을 채워요.</strong>
-          </div>
-        </section>
-
-        <!-- 홈: NPC가 배경 위에 서 있는 내 공간 + 채집 핫스팟 -->
+        <!-- 홈: NPC가 배경 위에 서 있는 공방 씬 + 채집 핫스팟 -->
         <div class="home-base">
           <div class="home-stage">
             <div class="scene-hotspots" id="scene-hotspots" aria-hidden="false">
@@ -65,17 +58,6 @@
             </div>
             <img class="home-npc" id="home-npc" src="assets/healer-default.png" alt="NPC"
                  tabindex="0" role="button" aria-label="NPC에게 말 걸기" />
-          </div>
-          <div class="home-actions">
-            <div class="act-row">
-              <button id="act-workshop"><span class="nav-emoji">🧪</span>공방</button>
-              <button id="act-garden"><span class="nav-emoji">🌱</span>텃밭</button>
-            </div>
-            <div id="home-hints" class="checkin-hints">
-              <p>🌿 빛나는 <b>장소를 탭</b>해 재료와 씨앗을 채집해요</p>
-              <p>🧪 <b>공방에서 휘저어</b> 포션을 빚어요</p>
-              <p>🌱 <b>제조할 때마다</b> 텃밭이 한 단계 자라요</p>
-            </div>
           </div>
         </div>
 

@@ -83,20 +83,12 @@
     }, 2000);
   }
 
-  /* ---------- 홈 배너 업데이트 (도감 진행도 안내) ---------- */
+  /* ---------- HUD 도감 진행 칩 ---------- */
   function updateBanner() {
-    var banner = $("#save-banner-sec");
-    var streakLine = $("#streak-line");
-    var bannerMsg = $("#banner-msg");
+    var prog = $("#codex-prog");
     var total = (PD.potions || []).length;
     var unlocked = Object.keys(state.potionCodex || {}).length;
-    if (streakLine) streakLine.textContent = "포션 도감 " + unlocked + " / " + total;
-    if (banner) banner.classList.toggle("saved-today", total > 0 && unlocked >= total);
-    if (bannerMsg) {
-      bannerMsg.textContent = (total > 0 && unlocked >= total)
-        ? "도감을 모두 채웠어요. 완벽한 포션도 노려봐요. ✨"
-        : "빛나는 장소를 탭해 채집하고, 공방에서 포션을 빚어요.";
-    }
+    if (prog) prog.textContent = unlocked + "/" + total;
   }
 
   /* ---------- 스토리 챕터 (NPC 순차 방문) ---------- */
@@ -1021,9 +1013,7 @@
 
   /* ---------- init ---------- */
   function wire() {
-    // 홈 액션: 공방 / 텃밭 (채집은 씬 핫스팟 터치로, 정산은 폐기)
-    var wsBtn = $("#act-workshop"); if (wsBtn) wsBtn.addEventListener("click", function () { openModal("workshop"); });
-    var gdBtn = $("#act-garden"); if (gdBtn) gdBtn.addEventListener("click", function () { openModal("garden"); });
+    // 공방/텃밭은 하단 네비로(중복 제거), 채집은 씬 핫스팟 터치로.
     // 홈 NPC 탭 → 점프 반응 후 NPC 대화 모달
     $("#home-npc").addEventListener("click", function () { reactHomeNpc(); openModal("npc"); });
     $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reactHomeNpc(); openModal("npc"); } });

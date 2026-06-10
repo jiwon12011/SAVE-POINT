@@ -608,6 +608,7 @@ h3 {
 }
 .star-chip img { width: 20px; height: 20px; object-fit: contain; }
 .star-chip b { color: #ffe1ab; font-family: "Quicksand", sans-serif; }
+.codex-chip .codex-ic { font-size: 15px; line-height: 20px; }
 
 /* 퀘스트 완료 플로팅 보상 */
 .float-reward {
