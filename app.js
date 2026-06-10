@@ -53,6 +53,7 @@
     $$("[data-view]").forEach(function (v) { v.classList.toggle("active-view", v.dataset.view === name); });
     $$(".bottom-nav [data-go]").forEach(function (b) { b.classList.toggle("active", b.dataset.go === name); });
     $(".phone").className = "phone view-" + name;
+    if (name === "npc") startDialogue(state.npc);
   }
 
   /* ---------- 스프라이트 폴백 ---------- */
@@ -143,20 +144,67 @@
     $("#quest-count").textContent = completedCount() + "/" + state.questTotal;
   }
 
-  /* ---------- 렌더: NPC ---------- */
-  function renderNpc(npc) {
-    state.npc = npc;
+  /* ---------- NPC 대화 장면 (RPG 대화창) ---------- */
+  var DIAGNOSIS = {
+    survival: "오늘은 거의 방전된 날이네요. 완성보다 회복이 먼저예요.",
+    easy: "여유가 조금 있는 날이에요. 가볍게 한 걸음이면 충분해요.",
+    normal: "무난한 하루네요. 본업 한 블록이면 오늘 몫은 충분해요.",
+    challenge: "컨디션이 좋아 보여요. 오늘은 정면으로 부딪쳐도 좋아요."
+  };
+  var HANDOFF = {
+    healer: "오늘의 퀘스트, 아주 작게 준비했어요. 받아볼래요? ▼",
+    innkeeper: "오늘 할 만한 것만 골라뒀어요. 보러 갈까요? ▼"
+  };
+  var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  var dlg = { lines: [], idx: 0, typing: false, timer: null, full: "" };
+
+  function buildScript(npc) {
+    var s = state.status, c = state.checkin;
+    var diag = DIAGNOSIS[s.mode] + "\n(HP " + c.hp + "/4 · MP " + c.mp + "/4 · 집중 " + c.focus + "/4)";
+    var seed = s.base + c.ailments.length;
+    var warm = window.Engine.pickDialogue({ dialogues: state.data.dialogue.dialogues }, npc, s.category, seed);
+    var hand = HANDOFF[npc] || "오늘의 퀘스트를 정리해뒀어요. 받아볼래요? ▼";
+    return [diag, warm, hand];
+  }
+
+  function startDialogue(npc) {
+    state.npc = npc || state.npc || (state.status && state.status.recommendedNpc) || "healer";
+    npc = state.npc;
     var s = state.status;
-    $("#npc-sprite").src = npcSprite(npc, s.expression);
-    $("#npc-sprite").className = "npc " + npc;
+    $("#npc-sprite").src = npcSprite(npc, s ? s.expression : "default");
+    $("#npc-sprite").className = "npc-portrait " + npc;
     $("#npc-name").textContent = NPC_NAME[npc];
-    $("#npc-reason").textContent = REASON_COPY[s.reason] || "추천";
-    var seed = s.base + state.checkin.ailments.length;
-    $("#npc-speech").textContent =
-      window.Engine.pickDialogue({ dialogues: state.data.dialogue.dialogues }, npc, s.category, seed);
-    $$("#npc-list .npc-card").forEach(function (b) {
-      b.classList.toggle("selected", b.dataset.npc === npc);
-    });
+    $$("#npc-list .npc-card").forEach(function (b) { b.classList.toggle("selected", b.dataset.npc === npc); });
+    dlg.lines = s ? buildScript(npc) : ["..."];
+    dlg.idx = 0;
+    typeLine(dlg.lines[0]);
+  }
+
+  function typeLine(text) {
+    var el = $("#npc-speech"), arrow = $("#next-arrow");
+    dlg.full = text;
+    clearInterval(dlg.timer);
+    arrow.classList.remove("ready");
+    if (REDUCED) { el.textContent = text; dlg.typing = false; arrow.classList.add("ready"); return; }
+    el.textContent = "";
+    dlg.typing = true;
+    var i = 0;
+    dlg.timer = setInterval(function () {
+      el.textContent = dlg.full.slice(0, ++i);
+      if (i >= dlg.full.length) { clearInterval(dlg.timer); dlg.typing = false; arrow.classList.add("ready"); }
+    }, 26);
+  }
+
+  function advanceDialogue() {
+    if (dlg.typing) {
+      clearInterval(dlg.timer);
+      $("#npc-speech").textContent = dlg.full;
+      dlg.typing = false;
+      $("#next-arrow").classList.add("ready");
+      return;
+    }
+    if (dlg.idx < dlg.lines.length - 1) { dlg.idx++; typeLine(dlg.lines[dlg.idx]); }
+    else { setView("quest"); }
   }
 
   /* ---------- 체크인 적용 ---------- */
@@ -168,7 +216,7 @@
     );
     renderStatus();
     renderQuests();
-    renderNpc(state.status.recommendedNpc);
+    state.npc = state.status.recommendedNpc;
   }
 
   /* ---------- 세이브 ---------- */
@@ -237,10 +285,18 @@
         setView(b.dataset.go);
       });
     });
-    // NPC 선택
+    // NPC 전환 (대화 다시 시작)
     $$("#npc-list .npc-card[data-npc]").forEach(function (b) {
-      b.addEventListener("click", function () { renderNpc(b.dataset.npc); });
+      b.addEventListener("click", function () { startDialogue(b.dataset.npc); });
     });
+    // 대화창 탭 → 다음 대사 (타이핑 중이면 즉시 완성)
+    var box = $("#dialogue-box");
+    if (box) {
+      box.addEventListener("click", advanceDialogue);
+      box.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); advanceDialogue(); }
+      });
+    }
   }
 
   function init() {

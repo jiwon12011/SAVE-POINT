@@ -22,6 +22,7 @@
           <div>
             <p class="date-label" id="date-label">6월 10일 수요일</p>
             <h1>SAVE POINT</h1>
+            <p class="tagline">오늘의 컨디션을 상태창으로. NPC가 당신의 하루를 읽어줘요.</p>
           </div>
           <button class="profile-chip" aria-label="프로필">
             <span>Lv. 07</span>
@@ -85,7 +86,7 @@
             <span><img src="assets/ailment-sleep.png" alt="" />수면 부족</span>
           </div>
 
-          <button class="primary-action" data-go="quest">퀘스트 받기</button>
+          <button class="primary-action" data-go="npc">오늘의 NPC 만나기</button>
         </section>
 
         <!-- 체크인 -->
@@ -131,7 +132,7 @@
               <input id="boss-input" value="포트폴리오 정리" aria-label="오늘의 보스" />
             </label>
           </div>
-          <button class="primary-action" id="checkin-save" data-go="home" disabled>상태 저장</button>
+          <button class="primary-action" id="checkin-save" data-go="npc" disabled>상태 저장하고 NPC 만나기</button>
         </section>
 
         <!-- 퀘스트 -->
@@ -144,20 +145,17 @@
           <button class="primary-action" data-go="save">퀘스트 0개여도 세이브</button>
         </section>
 
-        <!-- NPC -->
+        <!-- NPC 대화 장면 (RPG 대화창) -->
         <section class="npc-panel app-view" data-view="npc">
-          <div class="window-head">
-            <span>NPC 상담소</span>
-            <b id="npc-reason">추천</b>
-          </div>
-          <div class="npc-stage">
-            <img class="npc" id="npc-sprite" src="assets/healer-comfort.png" alt="NPC 치비 캐릭터" />
-            <div class="speech">
-              <strong id="npc-name">힐러</strong>
-              <p id="npc-speech">오늘은 여기까지 온 것만으로도 충분해요. 정말로요.</p>
+          <div class="npc-scene">
+            <img class="npc-portrait" id="npc-sprite" src="assets/healer-comfort.png" alt="NPC 치비 캐릭터" />
+            <div class="dialogue-box" id="dialogue-box" role="button" tabindex="0" aria-label="대사 넘기기">
+              <span class="name-plate" id="npc-name">힐러</span>
+              <p class="dialogue-text" id="npc-speech"></p>
+              <span class="next-arrow" id="next-arrow" aria-hidden="true">▼</span>
             </div>
           </div>
-          <div class="npc-list" id="npc-list">
+          <div class="npc-switch" id="npc-list">
             <button class="npc-card" data-npc="healer"><img src="assets/healer.png" alt="" /><span>힐러</span></button>
             <button class="npc-card" data-npc="innkeeper"><img src="assets/innkeeper.png" alt="" /><span>여관주인</span></button>
             <button class="npc-card locked"><img src="assets/guildmaster.png" alt="" /><span>길드마스터</span></button>
