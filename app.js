@@ -1,47 +1,50 @@
-/* SAVE POINT — 프로토타입 앱 로직 (P0)
- * 홈 = NPC가 배경에 서 있는 내 공간(탭하면 대화). 체크인·상태창·퀘스트·세이브 = 버튼으로 뜨는 팝업(모달).
+/* SAVE POINT — 연금술 게임 로직
+ * 홈 = NPC가 배경에 서 있는 공방(탭하면 대화). 정산·채집·상점·공방·텃밭·도감 = 버튼/네비로 뜨는 팝업(모달).
  */
 (function () {
   "use strict";
 
   var state = {
-    data: { quests: null, dialogue: null },
-    checkin: { hp: null, mp: null, focus: null, ailments: [], boss: "포트폴리오 정리" },
-    status: null, quests: null, npc: "healer",
-    completed: {}, rewardedKeys: {}, questTotal: 0, savedToday: false, lastSave: null,
+    npc: "healer",
+    lastSave: null,
     streak: 4, stardust: 0, level: 7, xp: 40, xpMax: 100,
     badges: {}, completedEver: 0, npcMet: {},
-    /* 포션 연금술 (1차) */
-    materials: {}, seeds: {}, plots: [], potionCodex: {}, activeRequest: null
+    /* 포션 연금술 */
+    materials: {}, seeds: {}, plots: [], potionCodex: {}, activeRequest: null,
+    /* 일일 플래그 (정산/채집 가용) */
+    settledToday: false, foragedToday: {}
   };
 
-  var DEFAULT_CHECKIN = {
-    hp: 2, mp: 1, focus: 2,
-    ailments: ["sleep_deprivation", "deadline_fear", "notification_overload"],
-    boss: "포트폴리오 정리"
-  };
-
-  var MODE_LABEL = { survival: "Survival", easy: "Easy", normal: "Normal", challenge: "Challenge" };
-  var MODE_EMOJI = { survival: "🛡️", easy: "💧", normal: "⚡", challenge: "⚔️" };
-  var MODE_BANNER = {
-    survival: "오늘은 회복이 먼저예요. 작은 것 하나면 충분해요. 🌿",
-    easy:     "여유가 조금 있는 날이에요. 가볍게 한 걸음이면 돼요. ✨",
-    normal:   "무난한 하루네요. 본업 한 블록이면 오늘 몫은 충분해요. ⚡",
-    challenge:"컨디션 좋은 날이에요. 오늘 보스를 정면으로 마주해요. ⚔️"
-  };
-  var MODE_COPY = {
-    survival: "HP와 MP가 낮은 날입니다. 오늘의 목표는 완성이 아니라, 다시 켤 수 있게 남겨두는 것.",
-    easy: "여유가 조금 있는 날. 가볍게 한 걸음만 떼도 충분해요.",
-    normal: "평범한 하루. 본업 한 블록이면 오늘의 몫은 충분합니다.",
-    challenge: "컨디션이 좋은 날. 오늘은 보스를 정면으로 마주해도 좋아요."
-  };
-  var DIAGNOSIS = {
-    survival: "오늘은 거의 방전된 날이네요. 완성보다 회복이 먼저예요.",
-    easy: "여유가 조금 있는 날이에요. 가볍게 한 걸음이면 충분해요.",
-    normal: "무난한 하루네요. 본업 한 블록이면 오늘 몫은 충분해요.",
-    challenge: "컨디션이 좋아 보여요. 오늘은 정면으로 부딪쳐도 좋아요."
-  };
   var NPC_NAME = { healer: "힐러", innkeeper: "여관주인", guildmaster: "길드마스터", rival: "라이벌", wizard: "마법사" };
+
+  /* 고정 게임 톤 NPC 대사 (state.status 의존 제거) */
+  var GAME_LINES = {
+    healer: [
+      { text: "어서 와요, 연금술사. 오늘은 어떤 포션을 빚어볼까요? 🌿", expr: "default" },
+      { text: "재료가 부족하면 달빛 숲으로 채집을 떠나봐요. 허브가 많거든요.", expr: "relax" },
+      { text: "급할 거 없어요. 좋은 포션은 천천히, 고르게 저어야 나와요.", expr: "comfort" }
+    ],
+    innkeeper: [
+      { text: "채집은 잘 다녀왔어요? 어디든 하루 한 번은 들를 수 있어요. 🗺️", expr: "default" },
+      { text: "동굴엔 광물이, 연못엔 희귀한 게 가라앉아 있죠. 골라서 가봐요.", expr: "joy" },
+      { text: "정산하고 푹 자고 나면 또 새 길이 열려요. 무리 말고요.", expr: "relax" }
+    ],
+    guildmaster: [
+      { text: "의뢰가 들어왔네. 공방에서 확인해봐. 보상은 두둑하니까. 📜", expr: "default" },
+      { text: "품질 좋은 포션일수록 별사탕을 많이 쳐줘. 손맛을 키워봐.", expr: "cheer" },
+      { text: "꾸준히 정산하는 연금술사를 길드는 좋아하지.", expr: "joy" }
+    ],
+    rival: [
+      { text: "또 왔네. 오늘 내 도감은 한 칸 더 찼는데, 넌? 😏", expr: "default" },
+      { text: "완벽한 포션, 만들어본 적 있어? 별 표시 말이야.", expr: "cheer" },
+      { text: "지는 건 싫으니까, 너도 분발해. 같이 가는 게 재밌잖아.", expr: "joy" }
+    ],
+    wizard: [
+      { text: "흥미롭군요. 재료가 필요하면 상점에서 결정체를 구할 수 있어요. 🔮", expr: "thinking" },
+      { text: "결정체는 포션의 뼈대예요. 거기에 작물 향을 더하면 품질이 올라가죠.", expr: "default" },
+      { text: "손이 기억하는 리듬이 재료보다 중요할 때가 있습니다.", expr: "relax" }
+    ]
+  };
   var SPRITES = {
     healer: ["default", "comfort", "joy", "cheer", "relax", "embrace"],
     innkeeper: ["default", "comfort", "joy", "relax", "welcome", "serving"],
@@ -52,20 +55,6 @@
   var HOME_THEMES = ["rainy", "fireplace", "potion", "bedroom", "guild", "dawn"];
   var homeTheme = HOME_THEMES[Math.floor(Math.random() * HOME_THEMES.length)];
   var REDUCED = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  var BADGES = [
-    { id: "first-save", name: "첫 세이브" },
-    { id: "no-zero-day", name: "포기하지 않은 자" },
-    { id: "survival-day", name: "버티는 자" },
-    { id: "comeback", name: "돌아온 모험가" },
-    { id: "boss-crown", name: "정면돌파자" },
-    { id: "seven-day", name: "7일 생존자" },
-    { id: "sleep-recovery", name: "침대와 동맹한 용사" },
-    { id: "focus-spark", name: "집중의 불씨" },
-    { id: "tea-break", name: "차 한 잔의 여유" },
-    { id: "gentle-warrior", name: "다정한 전사" },
-    { id: "room-key", name: "여관의 단골" },
-    { id: "star-candy-collector", name: "별사탕 수집가" }
-  ];
 
   var $ = function (s) { return document.querySelector(s); };
   var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
@@ -76,7 +65,7 @@
   function setViewClass(name) {
     var phone = $(".phone");
     if (!phone) return;
-    ["home", "checkin", "status", "quest", "save", "records", "npc"].forEach(function (v) {
+    ["home", "npc", "workshop", "garden", "codex", "forage", "shop"].forEach(function (v) {
       phone.classList.remove("view-" + v);
     });
     phone.classList.add("view-" + (name || "home"));
@@ -92,55 +81,22 @@
     }, 2000);
   }
 
-  /* ---------- 홈 배너 업데이트 ---------- */
+  /* ---------- 홈 배너 업데이트 (정산 상태) ---------- */
   function updateBanner() {
-    var s = state.status;
-    var modeRow = $("#mode-row");
-    var hints = $("#checkin-hints");
     var banner = $("#save-banner-sec");
-
-    if (!s) {
-      if (modeRow) modeRow.hidden = true;
-      if (hints) hints.hidden = false;
-      if (banner) banner.classList.remove("saved-today");
-      var msg = $("#banner-msg");
-      if (msg) msg.textContent = "오늘의 나를 저장하고, 다시 시작해요.";
-      return;
-    }
-
-    if (hints) hints.hidden = true;
-
-    if (modeRow) {
-      modeRow.hidden = false;
-      var pill = $("#mode-badge-pill");
-      if (pill) {
-        pill.textContent = MODE_EMOJI[s.mode] + " " + MODE_LABEL[s.mode];
-        pill.className = "mode-pill mode-" + s.mode;
-      }
-      var q = state.quests;
-      var hint = $("#quest-hint");
-      if (hint && q) {
-        var checkable = q.main.length + q.sub.length;
-        hint.textContent = "퀘스트 " + checkable + "개 · " + q.timeBox + "분";
-      }
-    }
-
+    var streakLine = $("#streak-line");
     var bannerMsg = $("#banner-msg");
-    if (bannerMsg) {
-      bannerMsg.textContent = state.savedToday
-        ? "오늘의 모험가가 저장되었습니다. 수고했어요. ✨"
-        : MODE_BANNER[s.mode];
+    var settleBtn = $("#act-settle");
+    if (streakLine) streakLine.textContent = "연속 정산 " + state.streak + "일";
+    if (state.settledToday) {
+      if (bannerMsg) bannerMsg.textContent = "오늘 정산을 마쳤어요. 내일 또 와요. 🌙";
+      if (banner) banner.classList.add("saved-today");
+      if (settleBtn) { settleBtn.disabled = true; settleBtn.textContent = "🌙 오늘 정산 완료 · 내일 또 와요"; }
+    } else {
+      if (bannerMsg) bannerMsg.textContent = "하루를 정산하면 텃밭이 자라고 별사탕을 받아요.";
+      if (banner) banner.classList.remove("saved-today");
+      if (settleBtn) { settleBtn.disabled = false; settleBtn.textContent = "🌙 잠자리 정산"; }
     }
-    if (banner) banner.classList.toggle("saved-today", state.savedToday);
-  }
-
-  /* ---------- NPC 세이브 대사 ---------- */
-  function pickDialogueForSave() {
-    if (!state.data.dialogue) return "";
-    var npc = state.npc || "healer";
-    var pool = ((state.data.dialogue.dialogues || {})[npc] || {})["save_complete"] || [];
-    if (!pool.length) return "";
-    return pool[Math.abs(state.streak) % pool.length];
   }
 
   function npcSprite(npc, expr) {
@@ -182,21 +138,6 @@
     phone.appendChild(el);
     setTimeout(function () { el.parentNode && el.parentNode.removeChild(el); }, 950);
   }
-  function unlockBadges(done) {
-    var b = state.badges, s = state.status, names = [];
-    function set(id, name) { if (!b[id]) { b[id] = true; names.push(name); } }
-    set("first-save", "첫 세이브");
-    set("tea-break", "차 한 잔의 여유");
-    if (done === 0) set("no-zero-day", "포기하지 않은 자");
-    if (s && s.mode === "survival") set("survival-day", "버티는 자");
-    if (s && s.mode === "challenge") set("boss-crown", "정면돌파자");
-    if (state.streak >= 7) set("seven-day", "7일 생존자");
-    if (state.checkin.ailments.indexOf("sleep_deprivation") >= 0) set("sleep-recovery", "침대와 동맹한 용사");
-    if (state.checkin.ailments.indexOf("focus_lost") >= 0) set("focus-spark", "집중의 불씨");
-    if (state.stardust >= 50) set("star-candy-collector", "별사탕 수집가");
-    return names;
-  }
-
   /* ---------- 영속(localStorage) ---------- */
   var SAVE_KEY = "savepoint_state_v1";
   function persist() {
@@ -204,7 +145,8 @@
       localStorage.setItem(SAVE_KEY, JSON.stringify({
         streak: state.streak, stardust: state.stardust, level: state.level, xp: state.xp, xpMax: state.xpMax,
         badges: state.badges, npcMet: state.npcMet, completedEver: state.completedEver,
-        materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex, activeRequest: state.activeRequest
+        materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex, activeRequest: state.activeRequest,
+        settledToday: state.settledToday, foragedToday: state.foragedToday
       }));
     } catch (e) {}
   }
@@ -218,6 +160,7 @@
       state.materials = s.materials || {}; state.seeds = s.seeds || {};
       state.plots = s.plots || []; state.potionCodex = s.potionCodex || {};
       state.activeRequest = (typeof s.activeRequest === "undefined") ? null : s.activeRequest;
+      state.settledToday = !!s.settledToday; state.foragedToday = s.foragedToday || {};
       return true;
     } catch (e) { return false; }
   }
@@ -229,14 +172,12 @@
   function openModal(name) {
     if (name === "home") { closeModal(); return; }
     setViewClass(name);
-    if (name === "status") renderStatus();
-    if (name === "quest") renderQuests();
-    if (name === "records") renderRecords();
-    if (name === "save") doSave();
     if (name === "npc") renderNpcModalContent();
     if (name === "workshop") { ensureRequest(); renderWorkshop(); }
     if (name === "garden") renderGarden();
     if (name === "codex") renderPotionCodex();
+    if (name === "forage") renderForage();
+    if (name === "shop") renderShop();
     $("#modal-layer").hidden = false;
     $$(".modal").forEach(function (m) { m.classList.toggle("show", m.id === "modal-" + name); });
     setNav(name);
@@ -246,12 +187,11 @@
     $("#modal-layer").hidden = true;
     $$(".modal").forEach(function (m) { m.classList.remove("show"); });
     setNav("home");
-    updateBanner();
+    updateHome();   // 홈 NPC·말풍선·배너 동기화(NPC 전환 반영)
   }
 
   /* ---------- NPC 대화 모달 ---------- */
-  var NPC_AVAIL = ["healer", "innkeeper"];
-  var NPC_LOCKED = ["guildmaster", "rival", "wizard"];
+  var NPC_AVAIL = ["healer", "innkeeper", "guildmaster", "rival", "wizard"];
   var npcDlgLines = [], npcDlgIdx = 0, npcDlgType = { timer: null, full: "", typing: false };
 
   function typeIntoNpc(text) {
@@ -269,25 +209,7 @@
   }
 
   function buildNpcDialogueLines(npc) {
-    if (!state.data.dialogue) return [{ text: "오늘 체크인을 먼저 해보면 어때? 30초면 돼. 🌿", expr: "default" }];
-    var s = state.status;
-    var dialogues = state.data.dialogue.dialogues;
-    var npcPool = dialogues[npc] || {};
-    var seed = s ? (s.base + (state.checkin.ailments || []).length) : 0;
-    var lines = [];
-
-    var cat = s ? s.category : "first_welcome";
-    var l1 = window.Engine.pickDialogue({ dialogues: dialogues }, npc, cat, seed);
-    if (l1) lines.push({ text: l1, expr: s ? s.expression : "default" });
-
-    if (s) {
-      var questPool = npcPool["quest_offer"] || [];
-      if (questPool.length) lines.push({ text: questPool[Math.abs(seed + 1) % questPool.length], expr: "cheer" });
-    }
-
-    var onePool = npcPool["one_liner"] || [];
-    if (onePool.length) lines.push({ text: onePool[Math.abs(seed + 2) % onePool.length], expr: "relax" });
-
+    var lines = (GAME_LINES[npc] || GAME_LINES.healer).slice();
     return lines.length ? lines : [{ text: "...", expr: "default" }];
   }
 
@@ -301,20 +223,17 @@
 
     var container = $("#npc-switch"); if (!container) return;
     container.innerHTML = "";
-    NPC_AVAIL.concat(NPC_LOCKED).forEach(function (npcId) {
-      var available = NPC_AVAIL.indexOf(npcId) >= 0;
+    NPC_AVAIL.forEach(function (npcId) {
       var btn = document.createElement("button");
-      btn.className = "npc-card" + (npcId === npc ? " selected" : "") + (!available ? " locked" : "");
+      btn.className = "npc-card" + (npcId === npc ? " selected" : "");
       btn.innerHTML = '<img src="assets/' + npcId + '-default.png" alt="" /><span>' + NPC_NAME[npcId] + "</span>";
-      if (available) {
-        btn.addEventListener("click", function () {
-          state.npc = npcId; state.npcMet[npcId] = true;
-          var seed = dropNpcSeed(npcId);   // C축: NPC 씨앗 보장 드롭(세션당 1회)
-          renderNpcModalContent();
-          if (seed) floatReward($("#npc-portrait"), "🌱 " + cropName(seed) + " 씨앗");
-          persist();
-        });
-      }
+      btn.addEventListener("click", function () {
+        state.npc = npcId; state.npcMet[npcId] = true;
+        var seed = dropNpcSeed(npcId);   // NPC 씨앗 보장 드롭(세션당 1회, healer/innkeeper만 풀 보유)
+        renderNpcModalContent();
+        if (seed) floatReward($("#npc-portrait"), "🌱 " + cropName(seed) + " 씨앗");
+        persist();
+      });
       container.appendChild(btn);
     });
   }
@@ -335,44 +254,14 @@
   /* ---------- 홈 NPC ---------- */
   var homeLines = [], homeIdx = 0, homeType = { timer: null, full: "", typing: false };
 
-  function timeGreeting() {
-    var h = new Date().getHours();
-    if (h < 6)  return "새벽에 왔구나";
-    if (h < 11) return "아침이야";
-    if (h < 17) return "오후네";
-    if (h < 21) return "저녁이야";
-    return "밤이 깊었네";
-  }
-
-  var PRE_CHECKIN_LINES = [
-    { text: "안녕, 모험가. 오늘 HP는 어때? 30초만 줘봐. 🗡️", expr: "default" },
-    { text: "여기는 세이브 포인트야. 아무것도 못 해도 저장은 돼. 그게 이 앱의 전부야. 🌿", expr: "relax" },
-    { text: "오늘 컨디션에 맞는 퀘스트를 같이 찾아볼게. 체크인 해봐. ✨", expr: "cheer" }
-  ];
-
-  function buildHomeLines(npc) {
-    var s = state.status;
-    var warm = window.Engine.pickDialogue({ dialogues: state.data.dialogue.dialogues }, npc, s.category, s.base + state.checkin.ailments.length);
-    var greet = timeGreeting();
-    var openingText = greet + ". " + DIAGNOSIS[s.mode];
-    var questLine = s.mode === "survival"
-      ? "퀘스트는 1개야. " + (state.quests ? state.quests.timeBox : 5) + "분짜리. 그것 하나면 충분해."
-      : "퀘스트 " + (state.quests ? (state.quests.main.length + state.quests.sub.length) : 0) + "개 기다리고 있어. 아래 버튼에서 받아봐.";
-    return [
-      { text: openingText, expr: s.expression },
-      { text: warm, expr: s.mode === "challenge" ? "cheer" : "comfort" },
-      { text: questLine, expr: s.mode === "survival" ? "relax" : "joy" }
-    ];
-  }
   function setHomeSprite(expr) {
     $("#home-npc").src = npcSprite(state.npc, expr);
     $("#home-npc").className = "home-npc " + state.npc;
   }
   function updateHome() {
-    var s = state.status;
     var npc = state.npc || "healer";
     $("#home-npc-name").textContent = NPC_NAME[npc];
-    homeLines = s ? buildHomeLines(npc) : PRE_CHECKIN_LINES;
+    homeLines = (GAME_LINES[npc] || GAME_LINES.healer).slice();
     homeIdx = 0;
     setHomeSprite(homeLines[0].expr);
     typeInto($("#home-speech"), homeLines[0].text);
@@ -395,169 +284,119 @@
     typeInto($("#home-speech"), homeLines[homeIdx].text);
   }
 
-  /* ---------- 렌더: 상태창 ---------- */
-  function renderStatus() {
-    var s = state.status, c = state.checkin;
-    if (!s) return;
-    $("#st-mode").textContent = MODE_LABEL[s.mode];
-    $("#st-title").textContent = s.title;
-    $("#st-copy").textContent = MODE_COPY[s.mode];
-    function meter(id, lvl) { $("#st-" + id + "-bar").style.width = (lvl / 4 * 100) + "%"; $("#st-" + id + "-val").textContent = lvl + "/4"; }
-    meter("hp", c.hp); meter("mp", c.mp); meter("focus", c.focus);
-    var box = $("#st-ailments"); box.innerHTML = "";
-    if (!c.ailments.length) { box.innerHTML = '<span class="ghost">상태이상 없음 ✨</span>'; return; }
-    c.ailments.forEach(function (id) {
-      var a = byId(id); if (!a) return;
-      var el = document.createElement("span");
-      el.innerHTML = '<img src="assets/' + a.icon + '.png" alt="" />' + a.name;
-      box.appendChild(el);
-    });
+  /* ---------- 잠자리 정산 (하루 1회) ---------- */
+  function doSettle() {
+    if (state.settledToday) return;
+    state.settledToday = true;
+    growPlotsOnSave();                          // 텃밭 한 단계 성장
+    state.streak += 1;
+    var streakSeed = dropStreakSeed();          // 출석 씨앗
+    state.stardust += (PD.settle ? PD.settle.stardust : 10);
+    gainXp(10);
+    state.foragedToday = {};                     // 채집 가용 리셋
+    updateHud(); updateBanner(); updateWorkshopBadge(); persist();
+    var anchor = $("#act-settle");
+    var msg = "🌙 정산 완료 · 텃밭 +1 · 별사탕 +" + (PD.settle ? PD.settle.stardust : 10);
+    floatReward(anchor, msg);
+    if (streakSeed) floatReward($("#save-banner-sec"), "🌱 " + cropName(streakSeed) + " 씨앗");
   }
 
-  /* ---------- 렌더: 퀘스트 ---------- */
-  function renderQuests() {
-    var q = state.quests, list = $("#quest-list"); if (!q) return;
-    list.innerHTML = ""; var total = 0; // 완료 상태는 보존(applyCheckin에서만 리셋)
-    q.main.forEach(function (it, i) { addQuest(list, "main", "MAIN · " + q.timeBox + "분", it, "m" + i); total++; });
-    q.sub.forEach(function (it, i) { addQuest(list, "sub", "SUB", it, "s" + i); total++; });
-    q.forbidden.forEach(function (it, i) { addQuest(list, "forbid", "FORBIDDEN", it, "f" + i); });
-    if (state.checkin.boss && state.checkin.boss.trim()) {
-      var card = document.createElement("article");
-      card.className = "quest-card boss";
-      card.innerHTML = '<img src="assets/icon-boss.png" alt="" /><small>TODAY\'S BOSS</small><h3>' + esc(state.checkin.boss.trim()) + "</h3>";
-      list.appendChild(card);
-    }
-    state.questTotal = total; updateQuestCount();
+  /* ---------- 채집 (forage) ---------- */
+  function renderForage(keepResult) {
+    var wrap = $("#forage-places"); if (!wrap) return;
+    wrap.innerHTML = "";
+    var places = PD.forage || {};
+    Object.keys(places).forEach(function (pid) {
+      var f = places[pid];
+      var done = !!state.foragedToday[pid];
+      var card = document.createElement("button");
+      card.type = "button";
+      card.className = "forage-place" + (done ? " done" : "");
+      card.innerHTML =
+        '<span class="forage-emoji">' + f.emoji + "</span>" +
+        '<span class="forage-name">' + esc(f.name) + "</span>" +
+        '<span class="forage-desc">' + esc(f.desc) + "</span>" +
+        '<span class="forage-cta">' + (done ? "오늘 채집함" : "채집하기") + "</span>";
+      if (!done) card.addEventListener("click", function () { forageAt(pid); });
+      wrap.appendChild(card);
+    });
+    if (!keepResult) { var res = $("#forage-result"); if (res) res.hidden = true; }
   }
-  function addQuest(list, kind, label, it, key) {
-    var card = document.createElement("article");
-    card.className = "quest-card " + (kind === "main" ? "main-quest" : kind === "forbid" ? "forbid" : "sub-quest");
-    var icon = kind === "forbid" ? "icon-forbidden" : kind === "main" ? "icon-quest" : "icon-star-candy";
-    card.innerHTML = '<img src="assets/' + icon + '.png" alt="" /><small>' + label + "</small><h3>" + esc(it.title) + "</h3>" + (it.flavor ? "<p>" + esc(it.flavor) + "</p>" : "");
-    if (kind !== "forbid") {
-      card.classList.add("checkable");
-      if (state.completed[key]) card.classList.add("done");
-      card.addEventListener("click", function () {
-        state.completed[key] = !state.completed[key];
-        card.classList.toggle("done", state.completed[key]);
-        if (state.completed[key]) {
-          card.classList.remove("checking");
-          void card.offsetWidth;
-          card.classList.add("checking");
-          if (!state.rewardedKeys[key]) {
-            state.rewardedKeys[key] = true;
-            var mult = (state.status && state.data.quests.modeParams[state.status.mode].rewardMultiplier) || 1;
-            var r = Math.round(5 * mult);
-            state.stardust += r; gainXp(r); floatReward(card, "+" + r + " ⭐");
-            dropQuestSeed();   // B축: 작은 실천의 씨앗(추천 회복) 드롭
-            persist();
-          }
+  function forageAt(pid) {
+    var f = (PD.forage || {})[pid];
+    if (!f || state.foragedToday[pid]) return;
+    state.foragedToday[pid] = true;
+    var loot = [];   // {id, kind:'mat'|'seed'}
+    var n = 1 + Math.floor(Math.random() * 3);   // 1~3개 재료
+    for (var i = 0; i < n; i++) {
+      var id = f.pool[Math.floor(Math.random() * f.pool.length)];
+      addMaterial(id, 1); loot.push({ id: id, seed: false });
+    }
+    if (f.seeds && f.seeds.length && Math.random() < (f.seedChance || 0)) {
+      var c = f.seeds[Math.floor(Math.random() * f.seeds.length)];
+      addSeed(c, 1); loot.push({ id: c, seed: true });
+    }
+    updateWorkshopBadge(); persist();
+    // 결과 표시
+    var res = $("#forage-result"), box = $("#forage-loot");
+    if (box) {
+      box.innerHTML = "";
+      loot.forEach(function (it) {
+        if (it.seed) {
+          var s = document.createElement("span"); s.className = "mat-chip k-crop";
+          s.innerHTML = '<img src="assets/seeds/seed_' + it.id + '.png" alt="" /><b>' + esc(cropName(it.id)) + " 씨앗</b>";
+          box.appendChild(s);
+        } else {
+          var m = matInfo(it.id);
+          var el = document.createElement("span"); el.className = "mat-chip k-" + m.kind;
+          el.innerHTML = matVisual(m) + "<b>" + esc(m.name) + "</b>";
+          box.appendChild(el);
         }
-        updateQuestCount();
       });
     }
-    list.appendChild(card);
+    if (res) res.hidden = false;
+    renderForage(true);   // 장소 카드 갱신(이 장소는 '오늘 채집함'), 결과는 유지
   }
-  function completedCount() { var n = 0; for (var k in state.completed) if (state.completed[k]) n++; return n; }
-  function updateQuestCount() { $("#quest-count").textContent = completedCount() + "/" + state.questTotal; }
 
-  /* ---------- 세이브 (멱등: 같은 날 중복 적립 방지) ---------- */
-  function doSave() {
-    if (!state.savedToday) {
-      var done = completedCount();
-      var gained = 10 + done * 5;
-      var xpGain = 20 + done * 10;
-      state.stardust += gained; state.streak += 1; state.completedEver += done;
-      if (state.npc) state.npcMet[state.npc] = true;
-      var leveled = gainXp(xpGain);
-      var newBadges = unlockBadges(done);
-      growPlotsOnSave();                          // 텃밭 한 단계 성장
-      var streakSeed = dropStreakSeed();          // 출석 씨앗
-      state.lastSave = { gained: gained, xpGain: xpGain, leveled: leveled, done: done, newBadges: newBadges, streakSeed: streakSeed };
-      state.savedToday = true;
-      updateWorkshopBadge();
-      persist();
+  /* ---------- 상점 (shop) ---------- */
+  function renderShop() {
+    var sd = $("#shop-stardust"); if (sd) sd.textContent = "⭐ " + state.stardust;
+    var sh = PD.shop || {};
+    var seedWrap = $("#shop-seeds"), matWrap = $("#shop-materials");
+    if (seedWrap) {
+      seedWrap.innerHTML = "";
+      (sh.seeds || []).forEach(function (c) {
+        var afford = state.stardust >= sh.seedCost;
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "shop-item" + (afford ? "" : " broke");
+        b.disabled = !afford;
+        b.innerHTML =
+          '<img src="assets/seeds/seed_' + c + '.png" alt="" />' +
+          "<b>" + esc(cropName(c)) + " 씨앗</b>" +
+          '<span class="shop-price">⭐ ' + sh.seedCost + "</span>";
+        b.addEventListener("click", function () { buyShop("seed", c, sh.seedCost); });
+        seedWrap.appendChild(b);
+      });
     }
-    renderSaveModal();
-  }
-  function renderSaveModal() {
-    var ls = state.lastSave || { gained: 10, xpGain: 20, leveled: false, done: 0, newBadges: [] };
-    $("#save-stardust").textContent = "별사탕 +" + ls.gained;
-    $("#save-streak").textContent = "연속 " + state.streak + "일";
-    $("#streak-line").textContent = "연속 세이브 " + state.streak + "일";
-    $("#save-lv").textContent = "Lv." + state.level;
-    $("#save-exp").textContent = "EXP +" + ls.xpGain;
-    $("#save-xp").style.width = (state.xp / state.xpMax * 100) + "%";
-    $("#save-levelup").hidden = !ls.leveled;
-    var nb = $("#save-badge");
-    if (ls.newBadges && ls.newBadges.length) { nb.hidden = false; nb.textContent = "🏅 칭호 해금: " + ls.newBadges.join(", "); }
-    else nb.hidden = true;
-    var sd = $("#save-seed");
-    if (sd) {
-      if (ls.streakSeed) { sd.hidden = false; sd.textContent = "🌱 출석 보상: " + cropName(ls.streakSeed) + " 씨앗"; }
-      else sd.hidden = true;
+    if (matWrap) {
+      matWrap.innerHTML = "";
+      (sh.materials || []).forEach(function (id) {
+        var afford = state.stardust >= sh.materialCost;
+        var m = matInfo(id);
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "shop-item" + (afford ? "" : " broke");
+        b.disabled = !afford;
+        b.innerHTML = matVisual(m) + "<b>" + esc(m.name) + "</b><span class=\"shop-price\">⭐ " + sh.materialCost + "</span>";
+        b.addEventListener("click", function () { buyShop("mat", id, sh.materialCost); });
+        matWrap.appendChild(b);
+      });
     }
-    var zeroCopy = ls.done === 0
-      ? "퀘스트 클리어가 없어도 이 기록은 사라지지 않아요. 오늘도 저장했어요."
-      : ls.done + "개의 퀘스트를 완료했어요. 수고했어요.";
-    $("#save-copy").textContent = zeroCopy;
-
-    var npcLine = pickDialogueForSave();
-    var npcEl = $("#npc-save-line");
-    if (npcEl) {
-      if (npcLine) { npcEl.hidden = false; npcEl.textContent = "“" + npcLine + "”"; }
-      else npcEl.hidden = true;
-    }
-    updateBanner();
   }
-
-  /* ---------- 생존 기록 · 도감 ---------- */
-  function renderRecords() {
-    $("#rec-streak").textContent = state.streak;
-    var npcN = Object.keys(state.npcMet).length;
-    $("#rec-stats").innerHTML =
-      '<span><b>' + state.completedEver + '</b>완료 퀘스트</span>' +
-      '<span><b>' + npcN + '</b>만난 NPC</span>' +
-      '<span><b>' + state.stardust + '</b>별사탕</span>';
-    var grid = $("#badge-grid"); grid.innerHTML = ""; var unlocked = 0;
-    BADGES.forEach(function (bd) {
-      var on = !!state.badges[bd.id];
-      if (on) unlocked++;
-      var el = document.createElement("div");
-      el.className = "badge-item" + (on ? "" : " locked");
-      el.innerHTML = '<img src="assets/badge-' + bd.id + '.png" alt="" /><span>' + (on ? bd.name : "???") + "</span>";
-      grid.appendChild(el);
-    });
-    $("#rec-badge-count").textContent = unlocked + " / " + BADGES.length;
-  }
-
-  /* ---------- 체크인 ---------- */
-  function applyCheckin(c) {
-    state.checkin = { hp: c.hp, mp: c.mp, focus: c.focus, ailments: c.ailments.slice(), boss: c.boss };
-    state.status = window.Engine.computeStatus(state.checkin);
-    state.quests = window.Engine.buildQuests(state.data.quests, state.status.mode, state.checkin.boss, state.status.base + state.checkin.ailments.length);
-    state.npc = state.status.recommendedNpc;
-    state.completed = {}; state.rewardedKeys = {}; state.savedToday = false; // 새 체크인 = 새 하루
-    renderStatus(); renderQuests(); updateHome();
-  }
-  function buildAilmentChips() {
-    var wrap = $("#ailment-chips");
-    window.Engine.AILMENTS.forEach(function (a) {
-      var btn = document.createElement("button");
-      btn.type = "button"; btn.className = "chip"; btn.dataset.id = a.id;
-      btn.innerHTML = '<img src="assets/' + a.icon + '.png" alt="" />' + a.name;
-      btn.addEventListener("click", function () { btn.classList.toggle("on"); });
-      wrap.appendChild(btn);
-    });
-  }
-  function refreshSaveEnabled() {
-    var ok = $('.stat-pick[data-stat="hp"] .sel') && $('.stat-pick[data-stat="mp"] .sel') && $('.stat-pick[data-stat="focus"] .sel');
-    $("#checkin-save").disabled = !ok;
-  }
-  function readCheckinForm() {
-    function lvl(stat) { var b = $('.stat-pick[data-stat="' + stat + '"] .sel'); return b ? parseInt(b.dataset.level, 10) : 2; }
-    var ail = $$("#ailment-chips .chip.on").map(function (b) { return b.dataset.id; });
-    return { hp: lvl("hp"), mp: lvl("mp"), focus: lvl("focus"), ailments: ail, boss: $("#boss-input").value };
+  function buyShop(kind, id, cost) {
+    if (state.stardust < cost) return;
+    state.stardust -= cost;
+    if (kind === "seed") addSeed(id, 1); else addMaterial(id, 1);
+    updateHud(); updateWorkshopBadge(); persist(); renderShop();
   }
 
   /* ========================================================================
@@ -568,18 +407,21 @@
   var QUALITY_ICON = ["○", "◆", "★"];
   var brew = { potionId: null, active: false, lastAng: null, rounds: 0, deltas: [], target: 3 };
 
-  // ail → 추천 회복(B축) 역맵 (포션 rec[1]에서 도출)
-  var REC_BY_AIL = {};
-  (PD.potions || []).forEach(function (p) { if (p.ail && p.rec && p.rec[1]) REC_BY_AIL[p.ail] = p.rec[1]; });
-
   function potionById(id) { var l = PD.potions || []; for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
 
-  /* ---- 재료/씨앗 정보 룩업 (신규 마스터 없이 기존 데이터 참조) ---- */
+  /* ---- 재료/씨앗 정보 룩업 (신규 마스터 없이 기존 데이터 참조) ----
+   * 결정체 재료(crystal): 게임 표시명은 POTION_DATA.materialName 우선.
+   * 아이콘은 engine AILMENTS에 있으면 그 아이콘, 없는 가상 id(sadness/procrastination 등)는 reward-potion 폴백. */
+  var MAT_NAME = PD.materialName || {};
   function matInfo(id) {
     if (PD.crops && PD.crops[id]) return { name: PD.crops[id].name, kind: "crop", img: "assets/crops/" + id + ".png" };
     if (PD.recovery && PD.recovery[id]) return { name: PD.recovery[id].name, kind: "recovery", emoji: PD.recovery[id].emoji };
-    var a = byId(id); if (a) return { name: a.name, kind: "crystal", img: "assets/" + a.icon + ".png" };
-    return { name: id, kind: "x", emoji: "❔" };
+    var a = byId(id);
+    if (a || MAT_NAME[id]) {
+      var name = MAT_NAME[id] || (a ? a.name : id);
+      return { name: name, kind: "crystal", img: a ? ("assets/" + a.icon + ".png") : "assets/reward-potion.png" };
+    }
+    return { name: id, kind: "x", emoji: "💎" };
   }
   function matVisual(m) { return m.img ? '<img src="' + m.img + '" alt="" />' : '<span class="mat-emoji">' + (m.emoji || "❔") + "</span>"; }
   function cropName(c) { return (PD.crops && PD.crops[c] ? PD.crops[c].name : c); }
@@ -594,19 +436,7 @@
   }
 
   /* ---- 드롭 훅 ---- */
-  // A축: 체크인에서 상태이상 태그를 고르는 순간 결정체 1개씩
-  function dropCheckinCrystals(ailments) {
-    (ailments || []).forEach(function (id) { addMaterial(id, 1); });
-    updateWorkshopBadge();
-  }
-  // B축: 퀘스트 완료 시 그날 첫 상태이상의 추천 회복(없으면 water)
-  function dropQuestSeed() {
-    var ail = (state.checkin.ailments && state.checkin.ailments[0]) || null;
-    var rec = (ail && REC_BY_AIL[ail]) || "water";
-    addMaterial(rec, 1); updateWorkshopBadge();
-    return rec;
-  }
-  // C축: NPC 전환 시 그 NPC의 씨앗 1개(세션당 NPC별 1회 보장)
+  // NPC 전환 시 그 NPC의 씨앗 1개(세션당 NPC별 1회 보장)
   var npcSeedGiven = {};
   function dropNpcSeed(npc) {
     if (npcSeedGiven[npc]) return null;
@@ -650,15 +480,14 @@
 
   function renderWorkshop() {
     // 멘토
-    var line = matCount() === 0 ? PD.mentorLines.noMaterial
-      : (state.lastSave && state.lastSave.done === 0 ? PD.mentorLines.zeroDay : PD.mentorLines.rhythm);
+    var line = matCount() === 0 ? PD.mentorLines.noMaterial : PD.mentorLines.rhythm;
     var ml = $("#workshop-mentor-line"); if (ml) ml.textContent = line;
     var mp = $("#workshop-mentor-img"); if (mp) mp.src = npcSprite("wizard", "thinking");
 
     // 재료 인벤토리 (보유분만, 축별)
     var inv = $("#workshop-materials"); inv.innerHTML = "";
     var keys = Object.keys(state.materials).filter(function (k) { return state.materials[k] > 0; });
-    if (!keys.length) { inv.innerHTML = '<p class="ws-empty">아직 재료가 없어요. 체크인·퀘스트·NPC로 재료가 쌓여요.</p>'; }
+    if (!keys.length) { inv.innerHTML = '<p class="ws-empty">아직 재료가 없어요. 채집·상점·텃밭으로 재료를 모아보세요.</p>'; }
     keys.forEach(function (id) {
       var m = matInfo(id);
       var el = document.createElement("span");
@@ -670,7 +499,7 @@
     // 제조 가능 포션
     var list = $("#workshop-potions"); list.innerHTML = "";
     var pool = brewablePotions();
-    if (!pool.length) { list.innerHTML = '<p class="ws-empty">제조할 수 있는 포션이 아직 없어요. 상태이상 결정체를 모아보세요.</p>'; }
+    if (!pool.length) { list.innerHTML = '<p class="ws-empty">제조할 수 있는 포션이 아직 없어요. 채집·상점에서 결정체를 모아보세요.</p>'; }
     pool.forEach(function (p) {
       var plan = brewPlan(p);
       var card = document.createElement("article");
@@ -845,14 +674,14 @@
         cell.innerHTML =
           '<img class="plot-crop growing-img" style="opacity:' + (0.45 + ratio * 0.55).toFixed(2) + ';transform:scale(' + (0.6 + ratio * 0.4).toFixed(2) + ')" src="assets/crops/' + p.cropId + '.png" alt="" />' +
           '<span class="plot-label">' + esc(cropName(p.cropId)) + "</span>" +
-          '<span class="plot-progress">' + left + "번 더 기록하면 수확 🌱</span>";
+          '<span class="plot-progress">' + left + "번 더 정산하면 수확 🌱</span>";
       }
       grid.appendChild(cell);
     });
     // 보유 씨앗 요약
     var sw = $("#garden-seeds"); sw.innerHTML = "";
     var seedKeys = Object.keys(state.seeds).filter(function (k) { return state.seeds[k] > 0; });
-    if (!seedKeys.length) sw.innerHTML = '<p class="ws-empty">씨앗이 없어요. 출석·NPC·퀘스트로 씨앗을 받아요.</p>';
+    if (!seedKeys.length) sw.innerHTML = '<p class="ws-empty">씨앗이 없어요. 채집·상점·정산으로 씨앗을 받아요.</p>';
     seedKeys.forEach(function (c) {
       var el = document.createElement("span"); el.className = "seed-chip";
       el.innerHTML = '<img src="assets/seeds/seed_' + c + '.png" alt="" /><b>' + esc(cropName(c)) + "</b><i>×" + state.seeds[c] + "</i>";
@@ -867,7 +696,7 @@
     seedKeys.forEach(function (c) {
       var b = document.createElement("button"); b.type = "button"; b.className = "seed-pick";
       var g = PD.crops[c] ? PD.crops[c].grow : 3;
-      b.innerHTML = '<img src="assets/seeds/seed_' + c + '.png" alt="" /><b>' + esc(cropName(c)) + '</b><small>세이브 ' + g + '회</small>';
+      b.innerHTML = '<img src="assets/seeds/seed_' + c + '.png" alt="" /><b>' + esc(cropName(c)) + '</b><small>정산 ' + g + '회</small>';
       b.addEventListener("click", function () { plant(plotIdx, c); picker.hidden = true; });
       listEl.appendChild(b);
     });
@@ -921,34 +750,21 @@
 
   /* ---------- init ---------- */
   function wire() {
-    // 스탯 선택
-    $$(".stat-pick[data-stat] .level-row button").forEach(function (btn) {
-      btn.addEventListener("click", function () {
-        Array.prototype.forEach.call(btn.parentNode.children, function (c) { c.classList.remove("sel"); });
-        btn.classList.add("sel"); refreshSaveEnabled();
-      });
-    });
-    // 홈 버튼
-    $("#act-checkin").addEventListener("click", function () { openModal("checkin"); });
-    $("#act-status").addEventListener("click", function () { openModal("status"); });
-    $("#act-quest").addEventListener("click", function () { openModal("quest"); });
+    // 홈 액션: 잠자리 정산 / 채집 / 공방
+    var settleBtn = $("#act-settle"); if (settleBtn) settleBtn.addEventListener("click", doSettle);
+    var forageBtn = $("#act-forage"); if (forageBtn) forageBtn.addEventListener("click", function () { openModal("forage"); });
+    var wsBtn = $("#act-workshop"); if (wsBtn) wsBtn.addEventListener("click", function () { openModal("workshop"); });
     // 홈 NPC 탭 → NPC 대화 모달
     $("#home-npc").addEventListener("click", function () { openModal("npc"); });
     $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal("npc"); } });
+    // 홈 말풍선 탭 → 그 자리에서 다음 대사 (NPC와 잡담)
+    var bubble = $("#home-bubble"); if (bubble) bubble.addEventListener("click", homeTalk);
     // NPC 대화창 탭 → 다음 대사
     var dlgBox = $("#npc-dialogue-box");
     if (dlgBox) {
       dlgBox.addEventListener("click", advanceNpcDialogue);
       dlgBox.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); advanceNpcDialogue(); } });
     }
-    // 체크인 저장 (+ A축 결정체 드롭)
-    $("#checkin-save").addEventListener("click", function () {
-      var form = readCheckinForm();
-      applyCheckin(form);
-      dropCheckinCrystals(form.ailments);   // 고른 상태이상 = 결정체
-      persist();
-      openModal("status");
-    });
     // 공방 휘젓기
     var pad = $("#stir-pad");
     if (pad) {
@@ -967,41 +783,29 @@
   }
 
   function init() {
-    buildAilmentChips(); wire(); initSplash();
-    function useData(q, d) {
-      state.data.quests = q; state.data.dialogue = d;
-      var restored = restore();
-      var isNewDay = checkDailyReset();
+    wire(); initSplash();
 
-      updateHud(); applyHomeTheme(); setViewClass("home");
-      ensurePlots(); ensureRequest(); updateWorkshopBadge();
+    var restored = restore();
+    var isNewDay = checkDailyReset();
 
-      if (isNewDay && restored) {
-        // 새 날: streak·별사탕·레벨은 유지, 오늘 체크인은 리셋 → 빈 홈 표시
-        state.status = null; state.quests = null;
-        state.completed = {}; state.rewardedKeys = {}; state.savedToday = false;
-        updateHome();
-      } else if (!restored) {
-        // 첫 방문: 데모 상태로 시작 (앱이 어떻게 생겼는지 보여줌)
-        state.badges["first-save"] = true; state.badges["tea-break"] = true; state.badges["survival-day"] = true;
-        state.npcMet["healer"] = true;
-        // 데모 재료·씨앗(공방·텃밭이 비어 보이지 않게)
-        DEFAULT_CHECKIN.ailments.forEach(function (id) { addMaterial(id, 1); });
-        addMaterial("tea", 1); addMaterial("walk", 1);
-        addSeed("moonherb", 1); addSeed("dew_berry", 1);
-        updateWorkshopBadge();
-        applyCheckin(DEFAULT_CHECKIN);
-      } else {
-        // 같은 날 재방문: 오늘 체크인 상태 유지
-        applyCheckin(DEFAULT_CHECKIN);
-      }
+    applyHomeTheme(); setViewClass("home");
+    ensurePlots(); ensureRequest();
+
+    if (isNewDay) {
+      // 새 날: streak·별사탕·레벨·인벤토리는 유지, 일일 플래그(정산/채집)만 리셋
+      state.settledToday = false; state.foragedToday = {};
+      if (restored) persist();
     }
-    if (window.SAVEPOINT_DATA) { useData(window.SAVEPOINT_DATA.quests, window.SAVEPOINT_DATA.dialogue); return; }
-    Promise.all([
-      fetch("docs/data/fallback-quests.json").then(function (r) { return r.json(); }),
-      fetch("docs/data/fallback-dialogue.json").then(function (r) { return r.json(); })
-    ]).then(function (res) { useData(res[0], res[1]); })
-      .catch(function (e) { console.error("데이터 로드 실패:", e); });
+    if (!restored) {
+      // 첫 방문: 데모 재료·씨앗(공방·텃밭이 비어 보이지 않게)
+      state.npcMet["healer"] = true;
+      ["sleep_deprivation", "deadline_fear", "notification_overload"].forEach(function (id) { addMaterial(id, 1); });
+      addMaterial("tea", 1); addMaterial("walk", 1);
+      addSeed("moonherb", 1); addSeed("dew_berry", 1);
+      persist();
+    }
+
+    updateHud(); updateWorkshopBadge(); updateHome();
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

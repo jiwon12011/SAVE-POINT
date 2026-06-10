@@ -896,6 +896,14 @@ h3 {
   font-weight: 800;
   font-size: 1.05rem;
   box-shadow: 0 14px 30px rgba(255, 182, 217, 0.26);
+  transition: 160ms;
+}
+.big-btn:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--dim);
+  box-shadow: none;
+  cursor: default;
+  font-size: 0.95rem;
 }
 .act-row { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .act-row button {
@@ -913,6 +921,7 @@ h3 {
   font-size: 0.92rem;
 }
 .act-row button img { width: 24px; height: 24px; object-fit: contain; }
+.act-row button .nav-emoji { font-size: 20px; line-height: 1; }
 
 /* ===== 팝업(모달) ===== */
 .modal-layer {
@@ -1232,6 +1241,51 @@ h3 {
 .codex-card.locked { color: var(--dim); }
 .codex-card.locked .silh { filter: grayscale(1) brightness(0.4); opacity: 0.5; }
 .save-seed { color: var(--gold) !important; }
+
+/* ============================ 채집 (Forage) ============================ */
+.forage-places { display: grid; gap: 10px; }
+.forage-place {
+  display: grid; grid-template-columns: 48px 1fr auto; align-items: center;
+  gap: 4px 12px; text-align: left; padding: 12px 14px; border-radius: 18px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06);
+  color: var(--text); transition: 160ms; cursor: pointer;
+}
+.forage-place:hover { border-color: rgba(255, 214, 153, 0.4); background: rgba(255, 255, 255, 0.09); transform: translateY(-1px); }
+.forage-place .forage-emoji { grid-row: 1 / span 2; font-size: 30px; text-align: center; }
+.forage-place .forage-name { font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 0.95rem; }
+.forage-place .forage-desc { grid-column: 2; font-size: 0.72rem; color: var(--muted); line-height: 1.35; }
+.forage-place .forage-cta {
+  grid-row: 1 / span 2; grid-column: 3; align-self: center;
+  padding: 6px 12px; border-radius: 12px; font-size: 0.74rem; font-weight: 700; color: #2a0e16;
+  background: linear-gradient(135deg, var(--pink), var(--gold));
+}
+.forage-place.done { opacity: 0.62; cursor: default; }
+.forage-place.done:hover { transform: none; border-color: var(--line); background: rgba(255, 255, 255, 0.06); }
+.forage-place.done .forage-cta { background: rgba(255, 255, 255, 0.12); color: var(--dim); }
+.forage-result { margin-top: 16px; padding: 12px 14px; border-radius: 16px;
+  border: 1px solid rgba(150, 230, 170, 0.32); background: rgba(120, 180, 130, 0.1); }
+.forage-result[hidden] { display: none; }
+.forage-result .ws-title { margin-top: 0; }
+
+/* ============================ 상점 (Shop) ============================ */
+.shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.shop-item {
+  display: flex; flex-direction: column; align-items: center; gap: 5px; text-align: center;
+  padding: 12px 8px; border-radius: 16px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.06);
+  color: var(--text); font-size: 0.78rem; transition: 140ms;
+}
+.shop-item:hover { border-color: rgba(255, 214, 153, 0.4); transform: translateY(-1px); }
+.shop-item img { width: 46px; height: 46px; object-fit: contain; }
+.shop-item .mat-emoji { font-size: 38px; line-height: 46px; height: 46px; }
+.shop-item b { font-size: 0.78rem; }
+.shop-item .shop-price {
+  padding: 3px 11px; border-radius: 999px; font-family: "Quicksand", sans-serif; font-weight: 700; font-size: 0.74rem;
+  background: rgba(255, 214, 153, 0.16); border: 1px solid rgba(255, 214, 153, 0.3); color: #ffe1ab;
+}
+.shop-item.broke { opacity: 0.5; cursor: not-allowed; }
+.shop-item.broke:hover { transform: none; border-color: var(--line); }
+.shop-item.broke .shop-price { background: rgba(255, 255, 255, 0.07); border-color: var(--line); color: var(--dim); }
 
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -77,6 +77,36 @@ window.POTION_DATA = {
     doneLine: "정확하게 만들었군요. 흥미롭습니다. 다음엔 더 어려운 걸 부탁해도 될까요?"
   },
 
+  /* 순수 게임 전환: 상태이상 id의 표시명을 게임 재료명으로 (id는 코드 키로 유지) */
+  materialName: {
+    sleep_deprivation: "몽환의 결정", caffeine_overload: "번개 수정", focus_lost: "안개 유리",
+    decision_paralysis: "미로 나침석", notification_overload: "울림 파편", anxiety: "그림자 수정",
+    burnout: "재 결정", sadness: "침잠석", escapism: "차원 파편",
+    deadline_fear: "망령의 재", procrastination: "이끼 수정"
+  },
+
+  /* 채집(Forage) — 장소 3곳. pool에서 1~3개 랜덤 드롭, seedChance로 씨앗 1개 추가 가능 */
+  forage: {
+    forest: { name: "달빛 숲", emoji: "🌲", desc: "허브와 꽃이 자라는 고요한 숲",
+      pool: ["moonherb", "dreambell", "still_lavender", "sleep_deprivation", "decision_paralysis", "procrastination"],
+      seeds: ["moonherb", "dreambell", "still_lavender"], seedChance: 0.35 },
+    cave: { name: "안개 동굴", emoji: "🕳️", desc: "광물과 결정이 묻힌 동굴",
+      pool: ["clarity_moss", "echo_thyme", "foxfire_cap", "caffeine_overload", "focus_lost", "notification_overload", "burnout", "deadline_fear"],
+      seeds: ["clarity_moss", "echo_thyme"], seedChance: 0.2 },
+    pond: { name: "공허 연못", emoji: "🌌", desc: "희귀한 것이 가라앉은 연못",
+      pool: ["marsh_root", "void_lily", "anxiety", "sadness", "escapism", "compass_vine", "signal_grass"],
+      seeds: ["dew_berry", "ghost_pepper_mild", "void_lily"], seedChance: 0.45 }
+  },
+
+  /* 상점 — 씨앗·기본 재료 구매(별사탕). 1차는 구매만(판매는 2차) */
+  shop: {
+    seeds: ["moonherb", "dew_berry", "clarity_moss", "still_lavender"], seedCost: 20,
+    materials: ["sleep_deprivation", "caffeine_overload", "focus_lost", "decision_paralysis"], materialCost: 15
+  },
+
+  /* 잠자리 정산 보상 */
+  settle: { stardust: 10 },
+
   /* 마법사 멘토 공방 한 줄 대사 */
   mentorLines: {
     noMaterial: "재료가 없군요. 오늘 상태를 기록하면 결정체가 생깁니다. 흥미로운 순환이에요.",
