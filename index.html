@@ -22,7 +22,7 @@
           <div>
             <p class="date-label" id="date-label">6월 10일 수요일</p>
             <h1>SAVE POINT</h1>
-            <p class="tagline">오늘의 컨디션을 상태창으로. NPC가 당신의 하루를 읽어줘요.</p>
+            <p class="tagline">잘 못 한 날도, 저장은 됩니다.</p>
           </div>
           <div class="hud">
             <button class="lv-chip" id="lv-chip" aria-label="레벨">
@@ -37,7 +37,7 @@
           <img src="assets/icon-save.png" alt="" />
           <div>
             <p id="streak-line">연속 세이브 4일</p>
-            <strong>잘 못 한 날도, 저장은 됩니다.</strong>
+            <strong>오늘의 나를 저장하고, 다시 시작해요.</strong>
           </div>
         </section>
 
@@ -146,7 +146,9 @@
                 <div class="exp-bar"><i id="save-xp"></i></div>
                 <p class="levelup" id="save-levelup" hidden>⭐ LEVEL UP! ⭐</p>
               </div>
+              <p class="save-badge" id="save-badge" hidden></p>
             </div>
+            <button class="ghost-action" data-open="records">기록 보기</button>
             <button class="primary-action" data-close>홈으로</button>
           </div>
 

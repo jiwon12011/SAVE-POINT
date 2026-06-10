@@ -8,7 +8,7 @@
     data: { quests: null, dialogue: null },
     checkin: { hp: null, mp: null, focus: null, ailments: [], boss: "포트폴리오 정리" },
     status: null, quests: null, npc: "healer",
-    completed: {}, rewardedKeys: {}, questTotal: 0,
+    completed: {}, rewardedKeys: {}, questTotal: 0, savedToday: false, lastSave: null,
     streak: 4, stardust: 0, level: 7, xp: 40, xpMax: 100,
     badges: {}, completedEver: 0, npcMet: {}
   };
@@ -94,15 +94,38 @@
     setTimeout(function () { el.parentNode && el.parentNode.removeChild(el); }, 950);
   }
   function unlockBadges(done) {
-    var b = state.badges, s = state.status;
-    b["first-save"] = true; b["tea-break"] = true;
-    if (done === 0) b["no-zero-day"] = true;
-    if (s && s.mode === "survival") b["survival-day"] = true;
-    if (s && s.mode === "challenge") b["boss-crown"] = true;
-    if (state.streak >= 7) b["seven-day"] = true;
-    if (state.checkin.ailments.indexOf("sleep_deprivation") >= 0) b["sleep-recovery"] = true;
-    if (state.checkin.ailments.indexOf("focus_lost") >= 0) b["focus-spark"] = true;
-    if (state.stardust >= 50) b["star-candy-collector"] = true;
+    var b = state.badges, s = state.status, names = [];
+    function set(id, name) { if (!b[id]) { b[id] = true; names.push(name); } }
+    set("first-save", "첫 세이브");
+    set("tea-break", "차 한 잔의 여유");
+    if (done === 0) set("no-zero-day", "포기하지 않은 자");
+    if (s && s.mode === "survival") set("survival-day", "버티는 자");
+    if (s && s.mode === "challenge") set("boss-crown", "정면돌파자");
+    if (state.streak >= 7) set("seven-day", "7일 생존자");
+    if (state.checkin.ailments.indexOf("sleep_deprivation") >= 0) set("sleep-recovery", "침대와 동맹한 용사");
+    if (state.checkin.ailments.indexOf("focus_lost") >= 0) set("focus-spark", "집중의 불씨");
+    if (state.stardust >= 50) set("star-candy-collector", "별사탕 수집가");
+    return names;
+  }
+
+  /* ---------- 영속(localStorage) ---------- */
+  var SAVE_KEY = "savepoint_state_v1";
+  function persist() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({
+        streak: state.streak, stardust: state.stardust, level: state.level, xp: state.xp, xpMax: state.xpMax,
+        badges: state.badges, npcMet: state.npcMet, completedEver: state.completedEver
+      }));
+    } catch (e) {}
+  }
+  function restore() {
+    try {
+      var s = JSON.parse(localStorage.getItem(SAVE_KEY) || "null");
+      if (!s) return false;
+      state.streak = s.streak; state.stardust = s.stardust; state.level = s.level; state.xp = s.xp; state.xpMax = s.xpMax;
+      state.badges = s.badges || {}; state.npcMet = s.npcMet || {}; state.completedEver = s.completedEver || 0;
+      return true;
+    } catch (e) { return false; }
   }
 
   /* ---------- 모달 ---------- */
@@ -129,12 +152,12 @@
   var homeLines = [], homeIdx = 0, homeType = { timer: null, full: "", typing: false };
 
   function buildHomeLines(npc) {
-    var s = state.status, c = state.checkin;
-    var diag = DIAGNOSIS[s.mode] + " (HP " + c.hp + "/4 · MP " + c.mp + "/4 · 집중 " + c.focus + "/4)";
-    var warm = window.Engine.pickDialogue({ dialogues: state.data.dialogue.dialogues }, npc, s.category, s.base + c.ailments.length);
+    var s = state.status;
+    // NPC는 수치를 직접 읽지 않고 감성 진단으로 말한다(수치는 상태창 모달에서 확인).
+    var warm = window.Engine.pickDialogue({ dialogues: state.data.dialogue.dialogues }, npc, s.category, s.base + state.checkin.ailments.length);
     // 대사마다 어울리는 표정: 진단=상태표정 → 위로=comfort/cheer → 마무리=relax/joy
     return [
-      { text: diag, expr: s.expression },
+      { text: DIAGNOSIS[s.mode], expr: s.expression },
       { text: warm, expr: s.mode === "challenge" ? "cheer" : "comfort" },
       { text: "오늘의 퀘스트는 아래 버튼에서 받을 수 있어요. 천천히 와요.", expr: s.mode === "survival" ? "relax" : "joy" }
     ];
@@ -190,7 +213,7 @@
   /* ---------- 렌더: 퀘스트 ---------- */
   function renderQuests() {
     var q = state.quests, list = $("#quest-list"); if (!q) return;
-    list.innerHTML = ""; state.completed = {}; state.rewardedKeys = {}; var total = 0;
+    list.innerHTML = ""; var total = 0; // 완료 상태는 보존(applyCheckin에서만 리셋)
     q.main.forEach(function (it, i) { addQuest(list, "main", "MAIN · " + q.timeBox + "분", it, "m" + i); total++; });
     q.sub.forEach(function (it, i) { addQuest(list, "sub", "SUB", it, "s" + i); total++; });
     q.forbidden.forEach(function (it, i) { addQuest(list, "forbid", "FORBIDDEN", it, "f" + i); });
@@ -209,13 +232,15 @@
     card.innerHTML = '<img src="assets/' + icon + '.png" alt="" /><small>' + label + "</small><h3>" + esc(it.title) + "</h3>" + (it.flavor ? "<p>" + esc(it.flavor) + "</p>" : "");
     if (kind !== "forbid") {
       card.classList.add("checkable");
+      if (state.completed[key]) card.classList.add("done");
       card.addEventListener("click", function () {
         state.completed[key] = !state.completed[key];
         card.classList.toggle("done", state.completed[key]);
         if (state.completed[key] && !state.rewardedKeys[key]) {
           state.rewardedKeys[key] = true;
-          state.stardust += 5; gainXp(5);
-          floatReward(card, "+5 ⭐");
+          var mult = (state.status && state.data.quests.modeParams[state.status.mode].rewardMultiplier) || 1;
+          var r = Math.round(5 * mult);
+          state.stardust += r; gainXp(r); floatReward(card, "+" + r + " ⭐"); persist();
         }
         updateQuestCount();
       });
@@ -225,26 +250,37 @@
   function completedCount() { var n = 0; for (var k in state.completed) if (state.completed[k]) n++; return n; }
   function updateQuestCount() { $("#quest-count").textContent = completedCount() + "/" + state.questTotal; }
 
-  /* ---------- 세이브 ---------- */
+  /* ---------- 세이브 (멱등: 같은 날 중복 적립 방지) ---------- */
   function doSave() {
-    var done = completedCount();
-    var gained = 10 + done * 5;
-    var xpGain = 20 + done * 10;
-    state.stardust += gained; state.streak += 1; state.completedEver += done;
-    if (state.npc) state.npcMet[state.npc] = true;
-    var leveled = gainXp(xpGain);
-    unlockBadges(done);
-    updateHud();
-    $("#save-stardust").textContent = "별사탕 +" + gained;
+    if (!state.savedToday) {
+      var done = completedCount();
+      var gained = 10 + done * 5;
+      var xpGain = 20 + done * 10;
+      state.stardust += gained; state.streak += 1; state.completedEver += done;
+      if (state.npc) state.npcMet[state.npc] = true;
+      var leveled = gainXp(xpGain);
+      var newBadges = unlockBadges(done);
+      state.lastSave = { gained: gained, xpGain: xpGain, leveled: leveled, done: done, newBadges: newBadges };
+      state.savedToday = true;
+      persist();
+    }
+    renderSaveModal();
+  }
+  function renderSaveModal() {
+    var ls = state.lastSave || { gained: 10, xpGain: 20, leveled: false, done: 0, newBadges: [] };
+    $("#save-stardust").textContent = "별사탕 +" + ls.gained;
     $("#save-streak").textContent = "연속 " + state.streak + "일";
     $("#streak-line").textContent = "연속 세이브 " + state.streak + "일";
     $("#save-lv").textContent = "Lv." + state.level;
-    $("#save-exp").textContent = "EXP +" + xpGain;
+    $("#save-exp").textContent = "EXP +" + ls.xpGain;
     $("#save-xp").style.width = (state.xp / state.xpMax * 100) + "%";
-    $("#save-levelup").hidden = !leveled;
-    $("#save-copy").textContent = done === 0
+    $("#save-levelup").hidden = !ls.leveled;
+    var nb = $("#save-badge");
+    if (ls.newBadges && ls.newBadges.length) { nb.hidden = false; nb.textContent = "🏅 칭호 해금: " + ls.newBadges.join(", "); }
+    else nb.hidden = true;
+    $("#save-copy").textContent = ls.done === 0
       ? "퀘스트 클리어가 없어도 이 기록은 사라지지 않아요. 오늘도 저장했어요."
-      : done + "개의 퀘스트를 완료했어요. 좋은 하루였네요.";
+      : ls.done + "개의 퀘스트를 완료했어요. 좋은 하루였네요.";
   }
 
   /* ---------- 생존 기록 · 도감 ---------- */
@@ -273,6 +309,7 @@
     state.status = window.Engine.computeStatus(state.checkin);
     state.quests = window.Engine.buildQuests(state.data.quests, state.status.mode, state.checkin.boss, state.status.base + state.checkin.ailments.length);
     state.npc = state.status.recommendedNpc;
+    state.completed = {}; state.rewardedKeys = {}; state.savedToday = false; // 새 체크인 = 새 하루
     renderStatus(); renderQuests(); updateHome();
   }
   function buildAilmentChips() {
@@ -312,7 +349,7 @@
     $("#home-npc").addEventListener("click", homeTalk);
     $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); homeTalk(); } });
     // 체크인 저장
-    $("#checkin-save").addEventListener("click", function () { applyCheckin(readCheckinForm()); closeModal(); });
+    $("#checkin-save").addEventListener("click", function () { applyCheckin(readCheckinForm()); openModal("status"); });
     // 모달 열기/닫기 (네비, 모달 내 이동 버튼)
     $$("[data-open]").forEach(function (b) { b.addEventListener("click", function () { openModal(b.dataset.open); }); });
     $$("[data-close]").forEach(function (b) { b.addEventListener("click", closeModal); });
@@ -322,9 +359,12 @@
     buildAilmentChips(); wire();
     function useData(q, d) {
       state.data.quests = q; state.data.dialogue = d;
+      var restored = restore();
       applyCheckin(DEFAULT_CHECKIN);
-      state.badges["first-save"] = true; state.badges["tea-break"] = true; state.badges["survival-day"] = true;
-      state.npcMet["healer"] = true;
+      if (!restored) {
+        state.badges["first-save"] = true; state.badges["tea-break"] = true; state.badges["survival-day"] = true;
+        state.npcMet["healer"] = true;
+      }
       updateHud();
     }
     if (window.SAVEPOINT_DATA) { useData(window.SAVEPOINT_DATA.quests, window.SAVEPOINT_DATA.dialogue); return; }

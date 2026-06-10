@@ -935,7 +935,12 @@ h3 {
   color: var(--muted);
   font-size: 0.9rem;
 }
-.modal-body { padding: 0 16px 14px; overflow-y: auto; }
+.modal-body { flex: 1 1 auto; min-height: 0; padding: 0 16px 14px; overflow-y: auto; }
+/* 긴 텍스트 줄바꿈 (보스/칭호/대사) */
+.quest-card h3, .quest-card p, #st-title, .home-bubble p, .dialogue-text, .badge-item span {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
 .modal .primary-action {
   position: static;
   left: auto;
@@ -944,7 +949,33 @@ h3 {
   width: calc(100% - 32px);
   margin: 4px 16px 16px;
 }
-.save-body { display: grid; justify-items: center; text-align: center; padding: 30px 18px 8px; }
+.save-body { position: relative; display: grid; justify-items: center; text-align: center; padding: 30px 18px 8px; }
+.save-body::before {
+  content: ""; position: absolute; top: 26px; left: 50%; width: 180px; height: 180px;
+  transform: translateX(-50%); border-radius: 50%; z-index: 0; pointer-events: none;
+  background: radial-gradient(circle, rgba(255, 214, 153, 0.34), transparent 70%);
+  animation: glowPulse 2.2s ease-in-out infinite;
+}
+@keyframes glowPulse { 50% { opacity: 0.55; transform: translateX(-50%) scale(1.16); } }
+.save-crystal { position: relative; z-index: 1; }
+.save-badge {
+  margin: 12px 0 0; padding: 8px 14px; border-radius: 999px;
+  background: rgba(255, 214, 153, 0.18); color: #ffe1ab; font-weight: 700; font-size: 0.86rem;
+}
+.save-badge[hidden] { display: none; }
+.ghost-action {
+  width: calc(100% - 32px); margin: 2px 16px 8px; min-height: 48px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text); font-weight: 700;
+}
+
+/* 금지 퀘스트: 앰버 + 밝은 텍스트로 위험도 적색과 분리(색각이상 대응) */
+.forbid h3, .forbid p { color: #ffe7b0; }
+.forbid small { color: #ffcf8a; }
+
+@media (max-width: 392px) {
+  .level-row { grid-template-columns: repeat(2, 1fr); }
+  .badge-grid, .record-stats { grid-template-columns: repeat(2, 1fr); }
+}
 
 /* ===== HUD: 레벨/EXP/별사탕 ===== */
 .hud { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
