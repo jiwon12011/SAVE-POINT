@@ -54,7 +54,9 @@ button {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 820px;
+  height: calc(100vh - 48px);       /* 폰을 뷰포트에 맞춤 — min-height가 max를 이기던 버그 해소 */
+  max-height: 820px;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 34px;
@@ -587,11 +589,16 @@ h3 {
 @keyframes pageSlideIn { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
 .modal-head {
   flex: none;                 /* 상단 고정: 본문만 스크롤 */
+  position: sticky;           /* 스크롤해도 헤더 고정 */
+  top: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 22px 18px 12px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(20, 16, 28, 0.96), rgba(20, 16, 28, 0.88));
+  backdrop-filter: blur(8px);
   font-family: "Quicksand", sans-serif;
   font-weight: 700;
   color: var(--muted);
@@ -605,11 +612,9 @@ h3 {
   color: var(--muted);
   font-size: 0.9rem;
 }
-.modal-body { flex: 1 1 auto; min-height: 0; padding: 14px 18px 14px; overflow-y: auto; }
-/* 페이지 하단 이동 버튼(.ghost-action)이 하단 네비(높이~62px + bottom16px)를 가리지 않게 여백 확보 */
-.modal > .ghost-action:last-child { margin-bottom: 86px; }
-/* 페이지에 ghost-action이 없을 때(도감 등엔 있음)도 본문 끝이 네비에 가리지 않도록 */
-.modal > .modal-body:last-child { padding-bottom: 92px; }
+.modal-body { flex: 1 1 auto; min-height: 0; padding: 14px 18px 96px; overflow-y: auto; }
+/* 페이지 하단 이동 버튼(.ghost-action)이 콘텐츠 흐름에 붙고 하단 네비를 가리지 않게 */
+.modal > .ghost-action:last-child { margin: 10px 16px 96px; }
 /* 긴 텍스트 줄바꿈 (보스/칭호/대사) */
 .home-bubble p, .dialogue-text {
   overflow-wrap: break-word;
@@ -670,17 +675,17 @@ h3 {
   background: var(--panel); backdrop-filter: blur(12px); border: 1px solid var(--line);
 }
 .ws-mentor img { width: 48px; height: 48px; object-fit: contain; flex: none; }
-.ws-mentor p { font-size: 0.8rem; color: var(--text); line-height: 1.45; }
+.ws-mentor p { font-size: 0.8rem; color: var(--text); line-height: 1.5; }
 
 /* 의뢰 카드 */
 .ws-request {
-  display: flex; gap: 10px; align-items: center; margin-top: 12px; padding: 10px 12px;
+  display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px;
   border-radius: 16px; border: 1px solid rgba(255, 214, 153, 0.4);
   background: linear-gradient(135deg, rgba(255, 214, 153, 0.14), rgba(255, 155, 181, 0.1));
 }
 .ws-request .req-npc { width: 46px; height: 46px; object-fit: contain; flex: none; }
 .ws-request .req-tag { font-size: 0.68rem; color: var(--gold); font-weight: 700; }
-.ws-request p { font-size: 0.78rem; color: var(--text); margin: 2px 0 3px; line-height: 1.4; }
+.ws-request p { min-width: 0; font-size: 0.8rem; color: var(--text); margin: 2px 0 3px; line-height: 1.5; }
 .ws-request small { font-size: 0.68rem; color: var(--muted); }
 
 /* 재료 칩 */
@@ -757,6 +762,14 @@ h3 {
 /* 텃밭 */
 .garden-hint { font-size: 0.76rem; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
 .garden-hint b { color: var(--gold); }
+.garden-guide {
+  font-size: 0.76rem; color: var(--text); line-height: 1.6; margin: 0 0 14px;
+  padding: 12px 14px; border-radius: 14px;
+  border: 1px solid rgba(159, 224, 178, 0.28);
+  background: linear-gradient(135deg, rgba(120, 200, 150, 0.12), rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(8px);
+}
+.garden-full-note { color: var(--gold); }
 .garden-plots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .plot {
   position: relative; aspect-ratio: 1; border-radius: 16px; display: flex; flex-direction: column;

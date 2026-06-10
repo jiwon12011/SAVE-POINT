@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SAVE POINT</title>
+    <title>달의 공방</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -19,7 +19,7 @@
         <div id="splash" class="splash-overlay">
           <div class="splash-inner">
             <img src="assets/icon-save.png" alt="" class="splash-crystal-img" />
-            <h1 class="splash-title">SAVE POINT</h1>
+            <h1 class="splash-title">달의 공방</h1>
             <p class="splash-sub">재료를 모아 포션을 빚는<br>작은 연금술 공방</p>
             <p class="splash-tagline">오늘도 공방 불을 켜요.</p>
           </div>
@@ -31,8 +31,8 @@
         <header class="topbar">
           <div>
             <p class="date-label" id="date-label">6월 10일 수요일</p>
-            <h1>SAVE POINT</h1>
-            <p class="tagline">재료를 모아 포션을 빚는 연금술 공방.</p>
+            <h1>달의 공방</h1>
+            <p class="tagline">밤마다 한 병씩, 포션을 빚는 작은 공방.</p>
           </div>
           <div class="hud">
             <button class="lv-chip" id="lv-chip" aria-label="레벨">
@@ -54,7 +54,7 @@
             </div>
             <div class="home-bubble" id="home-bubble" role="button" tabindex="0" aria-label="대화 계속">
               <strong id="home-npc-name">힐러</strong>
-              <p id="home-speech">탭하면 말을 걸 수 있어요.</p>
+              <p id="home-speech">오늘 공방에 누가 찾아왔을까요?</p>
               <div class="bubble-action" id="bubble-action" hidden></div>
               <span class="bubble-next" id="bubble-next" hidden>▼ 탭해서 계속</span>
             </div>
@@ -82,7 +82,7 @@
 
           <!-- 공방 (Workshop) -->
           <div class="modal" id="modal-workshop">
-            <div class="modal-head"><span>마법사의 공방</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
+            <div class="modal-head"><span>밤의 공방</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
             <div class="modal-body">
               <div class="ws-mentor">
                 <img id="workshop-mentor-img" src="assets/wizard-thinking.png" alt="" />
@@ -126,6 +126,7 @@
             <div class="modal-head"><span>나의 텃밭</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
             <div class="modal-body">
               <p class="garden-hint">씨앗을 심으면 <b>포션을 제조할 때마다</b> 한 단계씩 자라요. 앱을 안 열어도 시들지 않아요. 🌿</p>
+              <div class="garden-guide">씨앗을 심고 포션을 빚을 때마다 한 단계씩 자라요. 수확한 작물은 공방 재료가 되고, 시들지 않으니 천천히 해도 괜찮아요. 🌿</div>
               <div class="garden-plots" id="garden-plots"></div>
               <h4 class="ws-title">보유 씨앗</h4>
               <div class="garden-seeds" id="garden-seeds"></div>

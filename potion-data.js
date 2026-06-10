@@ -16,17 +16,19 @@ window.POTION_DATA = {
     { id: "burnout",               name: "번아웃",      icon: "ailment-low-battery" },
     { id: "social_drain",          name: "사람에 지침", icon: "ailment-social" },
     { id: "hunger",                name: "허기",        icon: "ailment-hunger" },
-    { id: "messy_room",            name: "어질러진 방", icon: "ailment-messy-room" }
+    { id: "messy_room",            name: "어질러진 방", icon: "ailment-messy-room" },
+    { id: "sadness",               name: "가라앉음",    icon: "ailment-sleep" },
+    { id: "procrastination",       name: "미루기",      icon: "ailment-messy-room" }
   ],
 
   /* B축 — 작은 실천의 씨앗 (recoveryItem id 재사용, 이모지 아이콘) */
   recovery: {
-    tea:        { name: "따뜻한 차", emoji: "🍵" },
-    water:      { name: "물 한 잔", emoji: "💧" },
-    coffee:     { name: "커피", emoji: "☕" },
-    walk:       { name: "산책", emoji: "🚶" },
-    nap:        { name: "쪽잠", emoji: "😴" },
-    meditation: { name: "명상", emoji: "🧘" },
+    tea:        { name: "온기 증류수", emoji: "🍵" },
+    water:      { name: "맑은 샘물", emoji: "💧" },
+    coffee:     { name: "각성 추출물", emoji: "☕" },
+    walk:       { name: "바람의 흔적", emoji: "🚶" },
+    nap:        { name: "달빛 침잠", emoji: "😴" },
+    meditation: { name: "고요의 향", emoji: "🧘" },
     potion:     { name: "회복 포션", emoji: "🧪" }
   },
 
@@ -125,16 +127,16 @@ window.POTION_DATA = {
   /* 상점 — 씨앗·기본 재료 구매(별사탕). 1차는 구매만(판매는 2차) */
   shop: {
     seeds: ["moonherb", "dew_berry", "clarity_moss", "still_lavender"], seedCost: 18,
-    materials: ["sleep_deprivation", "caffeine_overload", "focus_lost", "decision_paralysis"], materialCost: 15
+    materials: ["sleep_deprivation", "caffeine_overload", "focus_lost", "decision_paralysis", "procrastination"], materialCost: 15
   },
 
   /* 마법사 멘토 공방 한 줄 대사 */
   mentorLines: {
-    noMaterial: "재료가 없군요. 오늘 상태를 기록하면 결정체가 생깁니다. 흥미로운 순환이에요.",
+    noMaterial: "재료가 없군요. 달빛 숲이나 동굴에서 채집해오거나, 상점에서 결정체를 구할 수 있어요.",
     rhythm:     "나쁘지 않아요. 조금만 더 느리게, 조금만 더 고르게.",
     perfect:    "완벽하군요. 재료보다 손이 기억하는 게 더 많은 것 같습니다.",
     good:       "좋은 포션이에요. 정성이 담겼어요.",
     plain:      "오늘 가진 것으로 만든 포션. 그것만으로 충분합니다.",
-    zeroDay:    "아무것도 못 한 날에 여기 온 것, 그게 오늘의 재료예요. 일단 한 번 저어봐요."
+    zeroDay:    "재료가 많지 않아도 괜찮아요. 손이 먼저 기억할 거예요. 한 번 저어봐요."
   }
 };

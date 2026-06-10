@@ -17,7 +17,7 @@ window.CHAPTER_DATA = {
       wantsPotion:"silence_seal", wantsQuality:1, rewardStardust:28, rewardMaterial:"notification_overload", rewardQty:2,
       doneStory:[{text:"이거면 되겠네요. 고마워요, 말은 짧게 할게요.",expr:"relax"},{text:"길드마스터가 곧 올 것 같던데. 공식 의뢰래요.",expr:"default"}] },
     { id:"ch03", npc:"guildmaster", title:"공식 의뢰: 길드의 등불",
-      story:[{text:"이 공방을 정식 의뢰 대상으로 등록하겠네.",expr:"default"},{text:"길드원들이 요즘 집중을 잘 못 한다는 보고가 들어왔어. 안개가 낀 것처럼.",expr:"cheer"},{text:"품질이 기준을 통과하면 정식 납품처로 인정하지. 📜",expr:"default"}],
+      story:[{text:"이 공방을 정식 의뢰 대상으로 등록하겠네.",expr:"default"},{text:"길드원들이 요즘 집중을 잘 못 한다는 보고가 들어왔어. 안개가 낀 것처럼.",expr:"cheer"},{text:"품질이 기준을 통과하면 정식 납품 공방으로 올리지. 📜",expr:"default"}],
       questText:"집중 등불 포션, 좋음 이상으로 하나 납품하게.",
       wantsPotion:"focus_lantern", wantsQuality:1, rewardStardust:35, rewardMaterial:"focus_lost", rewardQty:3,
       doneStory:[{text:"합격이야. 길드 장부에 올리지.",expr:"joy"},{text:"참, 라이벌이라는 친구가 자네 얘기 하더군. 📜",expr:"comfort"}] },
@@ -49,7 +49,7 @@ window.CHAPTER_DATA = {
     { id:"ch09", npc:"wizard", title:"순환의 열쇠",
       story:[{text:"실험이 끝났어요. 이 마을의 결정체 순환, 막힌 게 아니었어요.",expr:"thinking"},{text:"당신이 여기서 포션을 빚기 시작한 뒤로 수치가 달라졌어요.",expr:"joy"},{text:"마지막으로 하나만요. 이 순환을 완성하는 포션이에요. 🔮",expr:"cheer"}],
       questText:"오늘의 증류액, 완벽 품질로.",
-      wantsPotion:"daily_distillate", wantsQuality:2, rewardStardust:80, rewardMaterial:"decision_paralysis", rewardQty:5,
-      doneStory:[{text:"이 마을은 당신이 필요했던 거예요. 앞으로도 계속 빚어줘요.",expr:"relax"},{text:"다음엔 더 멀리서 손님이 올지도 모르겠군요.",expr:"thinking"}] }
+      wantsPotion:"daily_distillate", wantsQuality:1, rewardStardust:80, rewardMaterial:"decision_paralysis", rewardQty:5,
+      doneStory:[{text:"포션이 쌓일수록 이 마을 공기가 달라졌어요. 계속 빚어줄 거죠?",expr:"relax"},{text:"다음엔 더 멀리서 손님이 올지도 모르겠군요.",expr:"thinking"}] }
   ]
 };

@@ -29,12 +29,12 @@
     innkeeper: [
       { text: "채집은 잘 다녀왔어요? 어디든 하루 한 번은 들를 수 있어요. 🗺️", expr: "default" },
       { text: "동굴엔 광물이, 연못엔 희귀한 게 가라앉아 있죠. 골라서 가봐요.", expr: "joy" },
-      { text: "정산하고 푹 자고 나면 또 새 길이 열려요. 무리 말고요.", expr: "relax" }
+      { text: "포션 하나 빚고 나면 또 새 길이 열려요. 무리하지 말고요.", expr: "relax" }
     ],
     guildmaster: [
       { text: "의뢰가 들어왔네. 공방에서 확인해봐. 보상은 두둑하니까. 📜", expr: "default" },
       { text: "품질 좋은 포션일수록 별사탕을 많이 쳐줘. 손맛을 키워봐.", expr: "cheer" },
-      { text: "꾸준히 정산하는 연금술사를 길드는 좋아하지.", expr: "joy" }
+      { text: "꾸준히 포션을 납품하는 연금술사를 길드는 좋아하지.", expr: "joy" }
     ],
     rival: [
       { text: "또 왔네. 오늘 내 도감은 한 칸 더 찼는데, 넌? 😏", expr: "default" },
@@ -125,7 +125,7 @@
   }
   // 홈/모달에서 "방문 NPC가 할 말 있음" — story 미열람(phase story) 또는 퀘스트 충족 대기(phase done)
   function chapterHasNews() {
-    if (isFreeMode()) return state.chapterPhase === "done";
+    // 자유 의뢰도 새 의뢰(story) / 충족 대기(done)면 알림
     return state.chapterPhase === "story" || state.chapterPhase === "done";
   }
   // 제조 결과가 현재 퀘스트를 충족하면 phase를 done으로 (보상은 done 대사 후 1회)
@@ -214,6 +214,10 @@
   }
   function openModal(name) {
     if (name === "home") { closeModal(); return; }
+    // 모달 전환 시 공방 휘젓기/씨앗 고르기 오버레이 잔류 방지
+    var bs = $("#brew-stage"); if (bs) bs.hidden = true;
+    var sp = $("#seed-picker"); if (sp) sp.hidden = true;
+    brew.active = false;
     setViewClass(name);
     if (name === "workshop") renderWorkshop();
     if (name === "garden") renderGarden();
@@ -221,6 +225,8 @@
     if (name === "shop") renderShop();
     $("#modal-layer").hidden = false;
     $$(".modal").forEach(function (m) { m.classList.toggle("show", m.id === "modal-" + name); });
+    // 페이지 스크롤 위치 리셋(이전 모달의 스크롤 잔상 방지)
+    var body = $("#modal-" + name + " .modal-body"); if (body) body.scrollTop = 0;
     setNav(name);
   }
   function closeModal() {
@@ -243,6 +249,9 @@
     var phase = state.chapterPhase;
     if (phase === "done") {
       if (ch && ch.doneStory && ch.doneStory.length) return ch.doneStory.slice();
+      // 자유 의뢰: 해당 의뢰의 doneLine 사용
+      var frDone = freeRequestDef();
+      if (frDone && frDone.doneLine) return [{ text: frDone.doneLine, expr: "joy" }];
       return [{ text: "고마워요. 덕분에 큰 도움이 됐어요.", expr: "joy" }];
     }
     if (phase === "quest") {
@@ -418,7 +427,7 @@
       var ch = currentChapter();
       lead = (state.chapterPhase === "done")
         ? "손님이 기다려요. 탭해서 포션을 전해줘요. ✨"
-        : (ch ? ch.title + " · 손님이 찾아왔어요. 탭해서 말 걸어봐요. ✨" : "새 손님이 찾아왔어요. 탭해보세요. ✨");
+        : (ch ? ch.title + " · 손님이 찾아왔어요. 탭해서 말 걸어봐요. ✨" : "새 의뢰가 들어왔어요. 들어볼까요? ✨");
       expr = state.chapterPhase === "done" ? "joy" : "default";
     } else if (state.chapterPhase === "quest") {
       var q = activeQuest();
@@ -741,7 +750,7 @@
     // 재료 인벤토리 (보유분만, 축별)
     var inv = $("#workshop-materials"); inv.innerHTML = "";
     var keys = Object.keys(state.materials).filter(function (k) { return state.materials[k] > 0; });
-    if (!keys.length) { inv.innerHTML = '<p class="ws-empty">아직 재료가 없어요. 채집·상점·텃밭으로 재료를 모아보세요.</p>'; }
+    if (!keys.length) { inv.innerHTML = '<p class="ws-empty">플라스크가 비어 있군요. 달빛 숲이나 동굴로 채집을 다녀와요.</p>'; }
     keys.forEach(function (id) {
       var m = matInfo(id);
       var el = document.createElement("span");
@@ -753,7 +762,7 @@
     // 제조 가능 포션
     var list = $("#workshop-potions"); list.innerHTML = "";
     var pool = brewablePotions();
-    if (!pool.length) { list.innerHTML = '<p class="ws-empty">제조할 수 있는 포션이 아직 없어요. 채집·상점에서 결정체를 모아보세요.</p>'; }
+    if (!pool.length) { list.innerHTML = '<p class="ws-empty">결정체가 있어야 포션을 빚을 수 있어요. 숲이나 동굴 채집부터요.</p>'; }
     pool.forEach(function (p) {
       var plan = brewPlan(p);
       var card = document.createElement("article");
@@ -907,7 +916,7 @@
   function checkRequestFulfill(potionId, q) {
     if (!checkChapterFulfill(potionId, q)) return null;
     var quest = activeQuest();
-    return "🎁 " + NPC_NAME[quest.npc] + "의 의뢰 충족! 홈에서 " + NPC_NAME[quest.npc] + "에게 전해주고 보상을 받아요.";
+    return "🎁 " + NPC_NAME[quest.npc] + "의 의뢰 충족! 홈에서 전해주고 보상을 받아요.";
   }
 
   /* ---- 텃밭(Garden) ---- */
@@ -933,14 +942,22 @@
         cell.innerHTML =
           '<img class="plot-crop growing-img" style="opacity:' + (0.45 + ratio * 0.55).toFixed(2) + ';transform:scale(' + (0.6 + ratio * 0.4).toFixed(2) + ')" src="assets/crops/' + p.cropId + '.png" alt="" />' +
           '<span class="plot-label">' + esc(cropName(p.cropId)) + "</span>" +
-          '<span class="plot-progress">' + left + "번 더 제조하면 수확 🌱</span>";
+          '<span class="plot-progress">' + left + "번 더 빚으면 수확 가능 🌱</span>";
       }
       grid.appendChild(cell);
     });
     // 보유 씨앗 요약
     var sw = $("#garden-seeds"); sw.innerHTML = "";
     var seedKeys = Object.keys(state.seeds).filter(function (k) { return state.seeds[k] > 0; });
-    if (!seedKeys.length) sw.innerHTML = '<p class="ws-empty">씨앗이 없어요. 채집·상점·정산으로 씨앗을 받아요.</p>';
+    // 화분이 가득 찼는데 심을 씨앗이 남아 있으면 안내(수확 유도)
+    var emptyPlots = state.plots.filter(function (p) { return !p || !p.cropId; }).length;
+    if (emptyPlots === 0 && seedKeys.length > 0) {
+      var full = document.createElement("p");
+      full.className = "ws-empty garden-full-note";
+      full.textContent = "화분이 가득 찼어요. 수확하면 새 씨앗을 심을 수 있어요. 🌿";
+      sw.appendChild(full);
+    }
+    if (!seedKeys.length) sw.innerHTML = '<p class="ws-empty">씨앗이 없어요. 채집하거나 상점에서 사거나, 손님과 대화하면 씨앗이 생겨요.</p>';
     seedKeys.forEach(function (c) {
       var el = document.createElement("span"); el.className = "seed-chip";
       el.innerHTML = '<img src="assets/seeds/seed_' + c + '.png" alt="" /><b>' + esc(cropName(c)) + "</b><i>×" + state.seeds[c] + "</i>";
@@ -988,7 +1005,7 @@
           '<small>' + esc(p.lore) + "</small><i>×" + cx.count + "</i>";
       } else {
         var hintImg = p.ail ? (function () { var a = byId(p.ail); return a ? "assets/" + a.icon + ".png" : "assets/reward-potion.png"; })() : "assets/reward-potion.png";
-        el.innerHTML = '<img class="silh" src="' + hintImg + '" alt="" /><b>???</b><small>아직 만들지 않은 포션</small>';
+        el.innerHTML = '<img class="silh" src="' + hintImg + '" alt="" /><b>???</b><small>아직 빚어본 적 없는 포션</small>';
       }
       grid.appendChild(el);
     });
@@ -1043,6 +1060,14 @@
 
   function init() {
     wire(); initSplash();
+
+    // 날짜 라벨 동적 갱신("M월 D일 요일")
+    var dl = $("#date-label");
+    if (dl) {
+      var now = new Date();
+      var days = ["일", "월", "화", "수", "목", "금", "토"];
+      dl.textContent = (now.getMonth() + 1) + "월 " + now.getDate() + "일 " + days[now.getDay()] + "요일";
+    }
 
     var restored = restore();
     var isNewDay = checkDailyReset();
