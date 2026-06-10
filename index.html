@@ -84,18 +84,25 @@
           <div class="modal" id="modal-workshop">
             <div class="modal-head"><span>밤의 공방</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
             <div class="modal-body">
-              <div class="ws-mentor">
-                <img id="workshop-mentor-img" src="assets/wizard-thinking.png" alt="" />
-                <p id="workshop-mentor-line">재료를 골라 포션을 만들어요.</p>
+              <!-- 상단 씬: 마법사가 공방에 서 있음 -->
+              <div class="ws-scene">
+                <div class="ws-bubble" aria-live="polite">
+                  <strong>마법사</strong>
+                  <p id="workshop-mentor-line">재료를 골라 포션을 만들어요.</p>
+                </div>
+                <img class="ws-npc ws-npc-wizard" id="workshop-mentor-img" src="assets/wizard-default.png" alt="마법사" />
               </div>
 
-              <div class="ws-request" id="workshop-request" hidden></div>
+              <!-- 하단 글래스 패널: 기능 UI -->
+              <div class="ws-panel">
+                <div class="ws-request" id="workshop-request" hidden></div>
 
-              <h4 class="ws-title">내 재료</h4>
-              <div class="ws-materials" id="workshop-materials"></div>
+                <h4 class="ws-title">내 재료</h4>
+                <div class="ws-materials" id="workshop-materials"></div>
 
-              <h4 class="ws-title">제조 가능한 포션</h4>
-              <div class="ws-potions" id="workshop-potions"></div>
+                <h4 class="ws-title">제조 가능한 포션</h4>
+                <div class="ws-potions" id="workshop-potions"></div>
+              </div>
 
               <!-- 휘젓기 제조 오버레이 -->
               <div class="brew-stage" id="brew-stage" hidden>
@@ -126,10 +133,22 @@
           <div class="modal" id="modal-garden">
             <div class="modal-head"><span>나의 텃밭</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
             <div class="modal-body">
-              <div class="garden-guide">씨앗을 심고 포션을 빚을 때마다 한 단계씩 자라요. 수확한 작물은 공방 재료가 되고, 시들지 않으니 천천히 해도 괜찮아요. 🌿</div>
-              <div class="garden-plots" id="garden-plots"></div>
-              <h4 class="ws-title">보유 씨앗</h4>
-              <div class="garden-seeds" id="garden-seeds"></div>
+              <!-- 상단 씬: 힐러가 텃밭에 서 있음 -->
+              <div class="ws-scene">
+                <div class="ws-bubble" aria-live="polite">
+                  <strong>힐러</strong>
+                  <p>밤의 침실에서 식물을 가꿔요 🌙</p>
+                </div>
+                <img class="ws-npc ws-npc-healer" src="assets/healer-default.png" alt="힐러" />
+              </div>
+
+              <!-- 하단 글래스 패널: 기능 UI -->
+              <div class="ws-panel garden-panel">
+                <div class="garden-guide">씨앗을 심고 포션을 빚을 때마다 한 단계씩 자라요. 수확한 작물은 공방 재료가 되고, 시들지 않으니 천천히 해도 괜찮아요. 🌿</div>
+                <div class="garden-plots" id="garden-plots"></div>
+                <h4 class="ws-title">보유 씨앗</h4>
+                <div class="garden-seeds" id="garden-seeds"></div>
+              </div>
 
               <div class="seed-picker" id="seed-picker" hidden>
                 <div class="seed-picker-head"><span>심을 씨앗 고르기</span><button id="seed-picker-close" aria-label="닫기">✕</button></div>
