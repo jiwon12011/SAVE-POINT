@@ -14,7 +14,9 @@
     /* 마지막 챕터 이후 자유 의뢰(freeRequest) 루프 인덱스 */
     requestIndex: 0,
     /* 일일 플래그 (채집 가용) */
-    foragedToday: {}
+    foragedToday: {},
+    /* 첫 플레이 튜토리얼 단계 (0 미시작…4 완료) */
+    tutorialStep: 0
   };
 
   var NPC_NAME = { healer: "힐러", innkeeper: "여관주인", guildmaster: "길드마스터", rival: "라이벌", wizard: "마법사" };
@@ -186,7 +188,8 @@
         streak: state.streak, stardust: state.stardust, level: state.level, xp: state.xp, xpMax: state.xpMax,
         materials: state.materials, seeds: state.seeds, plots: state.plots, potionCodex: state.potionCodex,
         currentChapter: state.currentChapter, chapterPhase: state.chapterPhase, requestIndex: state.requestIndex,
-        foragedToday: state.foragedToday
+        foragedToday: state.foragedToday,
+        tutorialStep: state.tutorialStep
       }));
     } catch (e) {}
   }
@@ -204,6 +207,8 @@
       state.requestIndex = s.requestIndex || 0;
       state.npc = s.npc || state.npc;
       state.foragedToday = s.foragedToday || {};
+      // 튜토리얼 단계: 구버전 세이브엔 없으므로 0(미시작) 기본. 복원된 유저는 init에서 강제로 시작하지 않음.
+      state.tutorialStep = (typeof s.tutorialStep === "number") ? s.tutorialStep : 0;
       return true;
     } catch (e) { return false; }
   }
@@ -214,12 +219,15 @@
   }
   function openModal(name) {
     if (name === "home") { closeModal(); return; }
+    // 도감에서 다른 모달로 전환 시에도 isNew 소거
+    var codexEl = $("#modal-codex");
+    if (name !== "codex" && codexEl && codexEl.classList.contains("show")) clearCodexNew();
     // 모달 전환 시 공방 휘젓기/씨앗 고르기 오버레이 잔류 방지
     var bs = $("#brew-stage"); if (bs) bs.hidden = true;
     var sp = $("#seed-picker"); if (sp) sp.hidden = true;
     brew.active = false;
     setViewClass(name);
-    if (name === "workshop") renderWorkshop();
+    if (name === "workshop") { renderWorkshop(); advanceTutorial(2); }
     if (name === "garden") renderGarden();
     if (name === "codex") renderPotionCodex();
     if (name === "shop") renderShop();
@@ -228,8 +236,14 @@
     // 페이지 스크롤 위치 리셋(이전 모달의 스크롤 잔상 방지)
     var body = $("#modal-" + name + " .modal-body"); if (body) body.scrollTop = 0;
     setNav(name);
+    // 튜토리얼 링 재평가(홈 타깃은 페이지에서 숨겨지므로 자동으로 안 그려짐)
+    if (state.tutorialStep >= 1 && state.tutorialStep < 4) tutorialHighlight(state.tutorialStep);
+    else clearTutorialRing();
   }
   function closeModal() {
+    // 도감을 닫는 중이면 isNew(첫 등록) 플래그 소거 + 영속
+    var codexEl = $("#modal-codex");
+    if (codexEl && codexEl.classList.contains("show")) clearCodexNew();
     setViewClass("home");
     $("#modal-layer").hidden = true;
     $$(".modal").forEach(function (m) { m.classList.remove("show"); });
@@ -325,6 +339,7 @@
 
   /* 인씬 대화 시작: 현재 phase 대사 첫 줄부터 */
   function startConv() {
+    advanceTutorial(1);   // 튜토리얼 1단계(NPC 말 걸기) 충족
     var npc = chapterNpc();
     state.npc = npc;
     $("#home-npc-name").textContent = NPC_NAME[npc];
@@ -442,25 +457,51 @@
     typeInto($("#home-speech"), lead);
     updateBanner();
     initSceneHotspots();   // 채집 핫스팟 wire + done 상태 반영
+    // 홈으로 돌아오면 현재 튜토리얼 단계 하이라이트 재배치(페이지 전환으로 어긋남 방지)
+    if (state.tutorialStep >= 1 && state.tutorialStep < 4) {
+      setTimeout(function () { if ($("#modal-layer").hidden) tutorialHighlight(state.tutorialStep); }, 60);
+    } else {
+      clearTutorialRing();
+    }
   }
 
   /* ---------- 채집 (forage) — 홈 씬 핫스팟 터치 ----------
    * 결과 DOM/모달은 폐기. 핵심(addMaterial/addSeed/persist)만 유지하고 loot을 반환해
    * 핫스팟 모션의 onDone에서 비행할 대표 재료를 고를 수 있게 한다. */
+  /* 오늘의 특별 채집 씬 — 날짜 해시로 forage 3곳 중 1곳 결정(서버 없이 모두 같은 날 같은 결과).
+   * 일일 리셋/새로고침 때 todaySpecial을 갱신한다. */
+  function getTodaySpecialScene() {
+    var keys = Object.keys((PD && PD.forage) || {});
+    if (!keys.length) return null;
+    var now = new Date();
+    var hash = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    return keys[hash % keys.length];
+  }
+  var todaySpecial = getTodaySpecialScene();
+  // 특별 씬별 보장 희귀 재료
+  var SPECIAL_RARE = { forest: "dreambell", cave: "foxfire_cap", pond: "void_lily" };
+
   function forageAt(pid) {
     var f = (PD.forage || {})[pid];
     if (!f || state.foragedToday[pid]) return null;
     state.foragedToday[pid] = true;
+    var special = (pid === todaySpecial);
     var loot = [];   // {id, seed:bool}
     var n = 1 + Math.floor(Math.random() * 2) + Math.floor(Math.random() * 2);   // 1~3개, 2 중심 가중치(2d2-1)
+    if (special) n += 1;   // 오늘의 특별 씬: 드롭 +1
     for (var i = 0; i < n; i++) {
       var id = f.pool[Math.floor(Math.random() * f.pool.length)];
       addMaterial(id, 1); loot.push({ id: id, seed: false });
+    }
+    if (special) {   // 희귀 재료 1개 보장 + 비행 연출 포함
+      var rare = SPECIAL_RARE[pid];
+      if (rare) { addMaterial(rare, 1); loot.push({ id: rare, seed: false }); }
     }
     if (f.seeds && f.seeds.length && Math.random() < (f.seedChance || 0)) {
       var c = f.seeds[Math.floor(Math.random() * f.seeds.length)];
       addSeed(c, 1); loot.push({ id: c, seed: true });
     }
+    if (pid === "forest") advanceTutorial(3);   // 튜토리얼 3단계(숲 채집) 충족 시 진행
     updateWorkshopBadge(); persist();
     return loot;
   }
@@ -551,6 +592,46 @@
     }, pdata.dur + 400);
   }
 
+  /* 포션 탄생 스타버스트: 플라스크 중심에서 6방향으로 ✦ 파티클이 퍼짐.
+   * fly 풀(acquireFly/flyParticles/flyTick) 재활용, onDone:null. 좌표는 phone 상대(flask 중심 기준).
+   * 품질별 색: q0 은빛 / q1 금빛 / q2 보라금. REDUCED면 스킵. */
+  var BURST_COLOR = ["#c8a8f0", "#f0c88a", "#f0a8c8"];
+  function potionBirthBurst(flaskEl, q) {
+    if (REDUCED || !flaskEl) return;
+    var phone = $(".phone"); if (!phone) return;
+    var pr = phone.getBoundingClientRect();
+    var fr = flaskEl.getBoundingClientRect();
+    var cx0 = fr.left - pr.left + fr.width / 2;
+    var cy0 = fr.top - pr.top + fr.height / 2;
+    var color = BURST_COLOR[q] || BURST_COLOR[0];
+    var dist = 64;
+    for (var a = 0; a < 6; a++) {
+      if (flyParticles.length >= FLY_CAP) break;
+      var ang = a * Math.PI / 3;                 // 0/60/120/180/240/300°
+      var x1 = cx0 + Math.cos(ang) * dist;
+      var y1 = cy0 + Math.sin(ang) * dist;
+      var el = acquireFly();
+      el.innerHTML = '<span style="color:' + color + '">✦</span>';
+      el.style.opacity = "1";
+      el.style.transform = "translate(" + cx0.toFixed(1) + "px," + cy0.toFixed(1) + "px) scale(0.6)";
+      phone.appendChild(el);
+      var pdata = {
+        el: el, start: 0, dur: 560,
+        x0: cx0, y0: cy0, x1: x1, y1: y1,
+        cx: (cx0 + x1) / 2, cy: (cy0 + y1) / 2,   // 직선 방사(제어점=중점)
+        onDone: null
+      };
+      flyParticles.push(pdata);
+      (function (pd) {
+        setTimeout(function () {
+          var idx = flyParticles.indexOf(pd);
+          if (idx >= 0) { flyParticles.splice(idx, 1); releaseFly(pd.el); }
+        }, pd.dur + 300);
+      })(pdata);
+    }
+    if (!flyRAF) flyRAF = requestAnimationFrame(flyTick);
+  }
+
   /* 터치 ripple (풀링) */
   function spawnRipple(btn, e) {
     if (REDUCED) return;
@@ -621,6 +702,17 @@
       btn.classList.toggle("done", done);
       btn.disabled = done;
       btn.setAttribute("aria-disabled", done ? "true" : "false");
+      // 오늘의 특별 채집 씬: 아직 안 채집했으면 강조 + 뱃지, 채집했으면 제거
+      var special = (pid === todaySpecial) && !done;
+      btn.classList.toggle("special-today", special);
+      var badge = btn.querySelector(".special-badge");
+      if (special && !badge) {
+        badge = document.createElement("span");
+        badge.className = "special-badge"; badge.textContent = "✨ 오늘";
+        btn.appendChild(badge);
+      } else if (!special && badge) {
+        badge.parentNode.removeChild(badge);
+      }
       if (btn._hsWired) return;       // 리스너 1회만
       btn._hsWired = true;
       btn.addEventListener("click", function (e) { playHarvestMotion(btn, pid, e); });
@@ -861,9 +953,10 @@
     var q = score >= 7 ? 2 : score >= 4 ? 1 : 0;
     // 재료 소비
     plan.use.forEach(function (id) { addMaterial(id, -1); });
-    // 도감 등록(최고 품질 유지)
+    // 도감 등록(최고 품질 유지). 첫 등록이면 isNew 플래그(도감 열어 닫으면 소거).
     var cx = state.potionCodex[p.id];
-    if (!cx) state.potionCodex[p.id] = { firstAt: Date.now(), bestQuality: q, count: 1 };
+    var codexFirst = !cx;
+    if (!cx) state.potionCodex[p.id] = { firstAt: Date.now(), bestQuality: q, count: 1, isNew: true };
     else { cx.bestQuality = Math.max(cx.bestQuality, q); cx.count += 1; }
     growPlotsOnSave();   // 제조 1개 = 텃밭 전체 +1단계(정산이 하던 역할을 제조로 이동)
     // 보상
@@ -873,7 +966,15 @@
     var reqMsg = checkRequestFulfill(p.id, q);
     // 결과 표시
     var liq = $("#brew-liquid"); if (liq) liq.style.transform = "rotate(0deg) scaleY(1)";
-    $("#brew-flask").classList.add("filling");
+    var flaskEl = $("#brew-flask");
+    flaskEl.classList.remove("filling"); void flaskEl.offsetWidth; flaskEl.classList.add("filling");
+    potionBirthBurst(flaskEl, q);   // 별 스타버스트 (REDUCED면 내부에서 스킵)
+    // 도감 첫 등록 배너
+    var codexNote = $("#brew-result-codex-note");
+    if (codexNote) {
+      if (codexFirst) { codexNote.textContent = "📖 도감에 처음 기록됐어요!"; codexNote.hidden = false; }
+      else { codexNote.textContent = ""; codexNote.hidden = true; }
+    }
     $("#brew-result-name").textContent = p.name;
     $("#brew-result-quality").textContent = QUALITY_ICON[q] + " " + QUALITY_NAME[q];
     $("#brew-result-quality").className = "brew-quality q" + q;
@@ -1000,9 +1101,11 @@
       var el = document.createElement("div");
       el.className = "codex-card" + (on ? "" : " locked") + (on && cx.bestQuality === 2 ? " perfect" : "");
       if (on) {
+        if (cx.isNew) el.classList.add("is-new");
         el.innerHTML = '<img src="' + potionImg(p) + '" alt="" width="54" height="54" decoding="async" loading="lazy" /><b>' + esc(p.name) + "</b>" +
           '<span class="codex-q q' + cx.bestQuality + '">' + QUALITY_ICON[cx.bestQuality] + " " + QUALITY_NAME[cx.bestQuality] + "</span>" +
-          '<small>' + esc(p.lore) + "</small><i>×" + cx.count + "</i>";
+          '<small>' + esc(p.lore) + "</small><i>×" + cx.count + "</i>" +
+          (cx.isNew ? '<span class="codex-new-badge">NEW</span>' : "");
       } else {
         var hintImg = p.ail ? (function () { var a = byId(p.ail); return a ? "assets/" + a.icon + ".png" : "assets/reward-potion.png"; })() : "assets/reward-potion.png";
         el.innerHTML = '<img class="silh" src="' + hintImg + '" alt="" /><b>???</b><small>아직 빚어본 적 없는 포션</small>';
@@ -1010,6 +1113,74 @@
       grid.appendChild(el);
     });
     var cnt = $("#codex-count"); if (cnt) cnt.textContent = unlocked + " / " + all.length;
+  }
+  /* 도감을 닫을 때 첫 등록(isNew) 플래그 소거 */
+  function clearCodexNew() {
+    var changed = false;
+    for (var id in state.potionCodex) {
+      if (state.potionCodex[id] && state.potionCodex[id].isNew) { delete state.potionCodex[id].isNew; changed = true; }
+    }
+    if (changed) persist();
+  }
+
+  /* ===========================================================================
+   * 첫 플레이 튜토리얼 (D1 리텐션) — 힌트만, 강제 차단 없음.
+   * step: 0 미시작 / 1 NPC 말 걸기 / 2 공방 열기 / 3 숲 채집 / 4 완료
+   * 단계별 대상 셀렉터·안내 메시지. 대상 위에 .tutorial-ring 1개를 phone 기준 절대배치.
+   * ======================================================================== */
+  var TUTORIAL_STEPS = {
+    1: { sel: "#home-npc", msg: "힐러가 기다려요. 탭해서 말 걸어봐요 👆", round: true },
+    2: { sel: '.bottom-nav [data-open="workshop"]', msg: "공방에서 첫 포션을 빚어봐요 🧪", round: false },
+    3: { sel: '#scene-hotspots .hotspot[data-place="forest"]', msg: "달빛 숲에서 재료를 채집해봐요 🌲", round: true }
+  };
+  function clearTutorialRing() {
+    var ring = $(".tutorial-ring");
+    if (ring && ring.parentNode) ring.parentNode.removeChild(ring);
+    var toast = $(".tutorial-toast");
+    if (toast && toast.parentNode) toast.parentNode.removeChild(toast);
+  }
+  /* 대상 위에 링 1개 + 안내 메시지(홈이면 말풍선, 아니면 토스트). 단계 바뀔 때 재배치. */
+  function tutorialHighlight(step) {
+    clearTutorialRing();
+    var cfg = TUTORIAL_STEPS[step];
+    if (!cfg) return;
+    var phone = $(".phone"); if (!phone) return;
+    var target = $(cfg.sel);
+    if (!target) return;
+    var tr = target.getBoundingClientRect();
+    // 대상이 지금 화면에 실제로 보일 때만 표시(visibility:hidden 조상이면 rect는 있어도 안 보임 → 스킵)
+    var visible = tr.width > 0 && tr.height > 0 && window.getComputedStyle(target).visibility !== "hidden";
+    if (!visible) return;   // 이 화면에 대상이 없으면 링·안내 모두 띄우지 않음
+    var pr = phone.getBoundingClientRect();
+    var ring = document.createElement("div");
+    ring.className = "tutorial-ring";
+    var pad = 8;
+    var w = tr.width + pad * 2, h = tr.height + pad * 2;
+    if (cfg.round) { var d = Math.max(w, h); w = h = d; }
+    ring.style.left = (tr.left - pr.left + tr.width / 2 - w / 2) + "px";
+    ring.style.top = (tr.top - pr.top + tr.height / 2 - h / 2) + "px";
+    ring.style.width = w + "px";
+    ring.style.height = h + "px";
+    ring.style.borderRadius = cfg.round ? "50%" : "16px";
+    phone.appendChild(ring);
+    // 안내 메시지: 홈(모달 닫힘)이면 말풍선, 모달 열림이면 작은 토스트
+    var modalOpen = !$("#modal-layer").hidden;
+    if (!modalOpen && step !== 2) {
+      typeInto($("#home-speech"), cfg.msg);
+    } else {
+      var toast = document.createElement("div");
+      toast.className = "tutorial-toast"; toast.textContent = cfg.msg;
+      phone.appendChild(toast);
+    }
+  }
+  /* completedStep을 끝냈을 때 다음 단계로. 현재 단계와 일치할 때만 진행(힌트만, 강제 아님). */
+  function advanceTutorial(completedStep) {
+    if (state.tutorialStep !== completedStep) return;
+    state.tutorialStep = completedStep + 1;
+    persist();
+    if (state.tutorialStep >= 4) { clearTutorialRing(); return; }
+    // 다음 단계 하이라이트(약간 지연 — 모달 전환/렌더 후 위치 안정)
+    setTimeout(function () { tutorialHighlight(state.tutorialStep); }, 60);
   }
 
   /* ---------- 데일리 리셋 ---------- */
@@ -1078,6 +1249,7 @@
     if (isNewDay) {
       // 새 날: 별사탕·레벨·인벤토리·챕터 진행은 유지, 채집 가용만 리셋.
       state.foragedToday = {};
+      todaySpecial = getTodaySpecialScene();   // 오늘의 특별 씬 갱신
       if (restored) persist();
     }
     if (!restored) {
@@ -1085,10 +1257,16 @@
       ["sleep_deprivation", "deadline_fear", "notification_overload"].forEach(function (id) { addMaterial(id, 1); });
       addMaterial("tea", 1); addMaterial("walk", 1);
       addSeed("moonherb", 1); addSeed("dew_berry", 1);
+      // 첫 방문만 튜토리얼 시작(1단계). 복원 유저는 기존 step 유지(보통 0=스킵).
+      state.tutorialStep = 1;
       persist();
     }
 
     updateHud(); updateWorkshopBadge(); updateHome();
+    // 튜토리얼 진행 중이면 현재 단계 하이라이트(홈 렌더 후 위치 안정 위해 지연)
+    if (state.tutorialStep >= 1 && state.tutorialStep < 4) {
+      setTimeout(function () { tutorialHighlight(state.tutorialStep); }, 400);
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);

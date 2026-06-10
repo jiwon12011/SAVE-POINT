@@ -742,6 +742,13 @@ h3 {
   border-radius: 44% 44% 0 0 / 30% 30% 0 0;
 }
 .brew-flask.filling .brew-liquid { box-shadow: 0 0 24px var(--liquid, #d9c7f2); }
+/* 포션 탄생: 채움 애니와 병행하는 빛번짐 팝 */
+.brew-flask.filling { animation: pop-glow 0.6s ease-out; }
+@keyframes pop-glow {
+  0%   { transform: scale(1);    filter: brightness(1)    saturate(1); }
+  45%  { transform: scale(1.12); filter: brightness(1.28) saturate(1.35); }
+  100% { transform: scale(1);    filter: brightness(1)    saturate(1); }
+}
 .stir-pad { position: absolute; inset: 0; display: grid; place-items: center; cursor: grab; touch-action: none; }
 .stir-pad[hidden] { display: none; }
 .stir-pad:active { cursor: grabbing; }
@@ -758,6 +765,11 @@ h3 {
 .brew-quality.q2 { color: var(--gold); text-shadow: 0 0 10px rgba(255, 214, 153, 0.6); }
 .brew-reward { font-size: 0.78rem; color: var(--pink); }
 .brew-mentor { font-size: 0.76rem; color: var(--muted); text-align: center; line-height: 1.45; margin: 4px 0; }
+.brew-codex-note {
+  font-size: 0.72rem; font-weight: 700; color: var(--gold);
+  text-align: center; margin: 2px 0; letter-spacing: .01em;
+}
+.brew-codex-note[hidden] { display: none; }
 
 /* 텃밭 */
 .garden-hint { font-size: 0.76rem; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
@@ -828,6 +840,14 @@ h3 {
 .codex-card.perfect { border-color: rgba(255, 214, 153, 0.55); box-shadow: 0 0 16px rgba(255, 214, 153, 0.18); }
 .codex-card.locked { color: var(--dim); }
 .codex-card.locked .silh { filter: grayscale(1) brightness(0.4); opacity: 0.5; }
+.codex-card.is-new { border-color: rgba(255, 168, 200, 0.6); box-shadow: 0 0 16px rgba(240, 168, 200, 0.22); }
+.codex-new-badge {
+  position: absolute; top: 8px; left: 8px; z-index: 2;
+  padding: 1px 6px; border-radius: 999px;
+  font-family: "Quicksand", sans-serif; font-size: 0.56rem; font-weight: 800; letter-spacing: .04em;
+  color: #2a1420; background: linear-gradient(135deg, #ffd699, #f0a8c8);
+  box-shadow: 0 2px 8px rgba(240, 168, 200, 0.4);
+}
 .save-seed { color: var(--gold) !important; }
 
 /* ============================ 채집 핫스팟 (홈 씬) ============================ */
@@ -872,6 +892,23 @@ h3 {
   50%      { transform: scale(1.22); opacity: 0.35; }
 }
 
+/* 오늘의 특별 채집 씬: 더 강한 골드 글로우 + 작은 칩 뱃지 (코지 톤) */
+.hotspot.special-today {
+  background: radial-gradient(circle at 50% 42%, rgba(255, 214, 153, 0.55), rgba(255, 214, 153, 0.14) 65%, transparent 72%);
+}
+.hotspot.special-today .hotspot-idle {
+  border-color: rgba(255, 214, 153, 0.85);
+  box-shadow: 0 0 22px rgba(255, 214, 153, 0.7), 0 0 40px rgba(255, 214, 153, 0.35);
+}
+.special-badge {
+  position: absolute; bottom: 100%; left: 50%; transform: translate(-50%, -2px);
+  z-index: 3; white-space: nowrap; pointer-events: none;
+  padding: 2px 8px; border-radius: 999px;
+  font-family: "Quicksand", sans-serif; font-size: 0.58rem; font-weight: 800; letter-spacing: .02em;
+  color: #2a1f10; background: linear-gradient(135deg, #ffe1ab, #ffd699);
+  box-shadow: 0 3px 10px rgba(255, 214, 153, 0.45);
+}
+
 /* 터치 ripple (풀링 재사용) */
 .scene-ripple {
   position: absolute; z-index: 0; width: 16px; height: 16px; margin: -8px 0 0 -8px;
@@ -895,6 +932,29 @@ h3 {
 
 /* HUD 별사탕 칩 도착 팝 */
 .star-chip.pop { animation: lvpop 420ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* ============================ 첫 플레이 튜토리얼 ============================ */
+.tutorial-ring {
+  position: absolute;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 60;
+  box-shadow: 0 0 0 2px rgba(255, 214, 153, 0.25), 0 0 18px rgba(255, 214, 153, 0.5);
+  animation: tutorial-pulse 1.6s ease-in-out infinite;
+}
+@keyframes tutorial-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(255, 214, 153, 0.2), 0 0 14px rgba(255, 214, 153, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(255, 214, 153, 0.32), 0 0 26px rgba(255, 214, 153, 0.7); }
+}
+.tutorial-toast {
+  position: absolute; left: 50%; bottom: 86px; transform: translateX(-50%);
+  z-index: 61; max-width: 80%; text-align: center; pointer-events: none;
+  padding: 8px 14px; border-radius: 14px;
+  font-size: 0.78rem; font-weight: 600; color: #2a1f10; line-height: 1.4;
+  background: linear-gradient(135deg, rgba(255, 225, 171, 0.96), rgba(255, 214, 153, 0.96));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
 
 /* ============================ 상점 (Shop) ============================ */
 .shop-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
