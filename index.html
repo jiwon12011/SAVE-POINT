@@ -46,14 +46,19 @@
         <section class="save-banner" id="save-banner-sec">
           <img src="assets/icon-save.png" alt="" id="banner-icon" />
           <div style="flex:1;min-width:0;">
-            <p id="streak-line">연속 정산 4일</p>
-            <strong id="banner-msg">하루를 정산하면 텃밭이 자라고 별사탕을 받아요.</strong>
+            <p id="streak-line">포션 도감 0 / 12</p>
+            <strong id="banner-msg">별사탕으로 채집·제조해 도감을 채워요.</strong>
           </div>
         </section>
 
-        <!-- 홈: NPC가 배경 위에 서 있는 내 공간 -->
+        <!-- 홈: NPC가 배경 위에 서 있는 내 공간 + 채집 핫스팟 -->
         <div class="home-base">
           <div class="home-stage">
+            <div class="scene-hotspots" id="scene-hotspots" aria-hidden="false">
+              <button class="hotspot" data-place="forest" style="--hx:12%;--hy:30%" aria-label="달빛 숲 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">🌿</span></button>
+              <button class="hotspot" data-place="cave"   style="--hx:88%;--hy:38%" aria-label="안개 동굴 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">🔮</span></button>
+              <button class="hotspot" data-place="pond"   style="--hx:13%;--hy:84%" aria-label="공허 연못 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">💧</span></button>
+            </div>
             <div class="home-bubble" id="home-bubble">
               <strong id="home-npc-name">힐러</strong>
               <p id="home-speech">탭하면 말을 걸 수 있어요.</p>
@@ -62,15 +67,14 @@
                  tabindex="0" role="button" aria-label="NPC에게 말 걸기" />
           </div>
           <div class="home-actions">
-            <button class="big-btn" id="act-settle">🌙 잠자리 정산</button>
             <div class="act-row">
-              <button id="act-forage"><span class="nav-emoji">🌿</span>채집</button>
               <button id="act-workshop"><span class="nav-emoji">🧪</span>공방</button>
+              <button id="act-garden"><span class="nav-emoji">🌱</span>텃밭</button>
             </div>
             <div id="home-hints" class="checkin-hints">
-              <p>🌿 <b>채집·상점</b>으로 재료와 씨앗을 모아요</p>
+              <p>🌿 빛나는 <b>장소를 탭</b>해 재료와 씨앗을 채집해요</p>
               <p>🧪 <b>공방에서 휘저어</b> 포션을 빚어요</p>
-              <p>🌙 <b>잠자리 정산</b>으로 텃밭이 자라고 별사탕을 받아요</p>
+              <p>🌱 <b>제조할 때마다</b> 텃밭이 한 단계 자라요</p>
             </div>
           </div>
         </div>
@@ -95,20 +99,6 @@
             </div>
           </div>
 
-          <!-- 채집 (Forage) -->
-          <div class="modal" id="modal-forage">
-            <div class="modal-head"><span>채집 — 오늘의 탐험</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
-            <div class="modal-body">
-              <p class="garden-hint">장소마다 <b>하루 한 번</b> 채집할 수 있어요. 정산하면 다시 채집할 수 있어요. 🌿</p>
-              <div class="forage-places" id="forage-places"></div>
-              <div class="forage-result" id="forage-result" hidden>
-                <h4 class="ws-title">획득</h4>
-                <div class="ws-materials" id="forage-loot"></div>
-              </div>
-            </div>
-            <button class="ghost-action" data-open="shop">🛒 상점으로</button>
-          </div>
-
           <!-- 상점 (Shop) -->
           <div class="modal" id="modal-shop">
             <div class="modal-head"><span>잡화 상점 · <b id="shop-stardust">⭐ 0</b></span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
@@ -119,7 +109,7 @@
               <h4 class="ws-title">기본 결정체</h4>
               <div class="shop-grid" id="shop-materials"></div>
             </div>
-            <button class="ghost-action" data-open="forage">🌿 채집으로</button>
+            <button class="ghost-action" data-open="workshop">🧪 공방으로</button>
           </div>
 
           <!-- 공방 (Workshop) -->
@@ -167,7 +157,7 @@
           <div class="modal" id="modal-garden">
             <div class="modal-head"><span>나의 텃밭</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
             <div class="modal-body">
-              <p class="garden-hint">씨앗을 심으면 <b>정산할 때마다</b> 한 단계씩 자라요. 앱을 안 열어도 시들지 않아요. 🌿</p>
+              <p class="garden-hint">씨앗을 심으면 <b>포션을 제조할 때마다</b> 한 단계씩 자라요. 앱을 안 열어도 시들지 않아요. 🌿</p>
               <div class="garden-plots" id="garden-plots"></div>
               <h4 class="ws-title">보유 씨앗</h4>
               <div class="garden-seeds" id="garden-seeds"></div>
@@ -194,7 +184,6 @@
           <button class="active" data-open="home"><img src="assets/nav-home.png" alt="" />홈</button>
           <button data-open="workshop"><span class="nav-emoji">🧪</span>공방<i class="nav-badge" id="workshop-badge" hidden>0</i></button>
           <button data-open="garden"><span class="nav-emoji">🌱</span>텃밭</button>
-          <button data-open="forage"><span class="nav-emoji">🌿</span>채집</button>
           <button data-open="shop"><span class="nav-emoji">🛒</span>상점</button>
           <button data-open="codex"><span class="nav-emoji">📖</span>도감</button>
         </nav>

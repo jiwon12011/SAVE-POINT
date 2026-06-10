@@ -81,21 +81,19 @@
     }, 2000);
   }
 
-  /* ---------- 홈 배너 업데이트 (정산 상태) ---------- */
+  /* ---------- 홈 배너 업데이트 (도감 진행도 안내) ---------- */
   function updateBanner() {
     var banner = $("#save-banner-sec");
     var streakLine = $("#streak-line");
     var bannerMsg = $("#banner-msg");
-    var settleBtn = $("#act-settle");
-    if (streakLine) streakLine.textContent = "연속 정산 " + state.streak + "일";
-    if (state.settledToday) {
-      if (bannerMsg) bannerMsg.textContent = "오늘 정산을 마쳤어요. 내일 또 와요. 🌙";
-      if (banner) banner.classList.add("saved-today");
-      if (settleBtn) { settleBtn.disabled = true; settleBtn.textContent = "🌙 오늘 정산 완료 · 내일 또 와요"; }
-    } else {
-      if (bannerMsg) bannerMsg.textContent = "하루를 정산하면 텃밭이 자라고 별사탕을 받아요.";
-      if (banner) banner.classList.remove("saved-today");
-      if (settleBtn) { settleBtn.disabled = false; settleBtn.textContent = "🌙 잠자리 정산"; }
+    var total = (PD.potions || []).length;
+    var unlocked = Object.keys(state.potionCodex || {}).length;
+    if (streakLine) streakLine.textContent = "포션 도감 " + unlocked + " / " + total;
+    if (banner) banner.classList.toggle("saved-today", total > 0 && unlocked >= total);
+    if (bannerMsg) {
+      bannerMsg.textContent = (total > 0 && unlocked >= total)
+        ? "도감을 모두 채웠어요. 완벽한 포션도 노려봐요. ✨"
+        : "빛나는 장소를 탭해 채집하고, 공방에서 포션을 빚어요.";
     }
   }
 
@@ -177,7 +175,6 @@
     if (name === "workshop") { ensureRequest(); renderWorkshop(); }
     if (name === "garden") renderGarden();
     if (name === "codex") renderPotionCodex();
-    if (name === "forage") renderForage();
     if (name === "shop") renderShop();
     $("#modal-layer").hidden = false;
     $$(".modal").forEach(function (m) { m.classList.toggle("show", m.id === "modal-" + name); });
@@ -259,6 +256,13 @@
     $("#home-npc").src = npcSprite(state.npc, expr);
     $("#home-npc").className = "home-npc " + state.npc;
   }
+  /* 홈 NPC 탭 반응: 점프 애니(.react 토글). REDUCED면 무시. */
+  function reactHomeNpc() {
+    if (REDUCED) return;
+    var npc = $("#home-npc"); if (!npc) return;
+    npc.classList.remove("react"); void npc.offsetWidth; npc.classList.add("react");
+    setTimeout(function () { npc.classList.remove("react"); }, 480);
+  }
   function updateHome() {
     var npc = state.npc || "healer";
     $("#home-npc-name").textContent = NPC_NAME[npc];
@@ -267,6 +271,7 @@
     setHomeSprite(homeLines[0].expr);
     typeInto($("#home-speech"), homeLines[0].text);
     updateBanner();
+    initSceneHotspots();   // 채집 핫스팟 wire + done 상태 반영
   }
   function typeInto(el, text) {
     homeType.full = text; clearInterval(homeType.timer);
@@ -285,51 +290,14 @@
     typeInto($("#home-speech"), homeLines[homeIdx].text);
   }
 
-  /* ---------- 잠자리 정산 (하루 1회) ---------- */
-  function doSettle() {
-    if (state.settledToday) return;
-    state.settledToday = true;
-    growPlotsOnSave();                          // 텃밭 한 단계 성장
-    state.streak += 1;
-    var streakSeed = dropStreakSeed();          // 출석 씨앗
-    var settleStar = (PD.settle ? PD.settle.stardust : 15);
-    state.stardust += settleStar;
-    gainXp(settleStar);
-    state.foragedToday = {};                     // 채집 가용 리셋
-    rotateRequestIfDone();                        // 완료된 의뢰면 새 의뢰로 교체
-    updateHud(); updateBanner(); updateWorkshopBadge(); persist();
-    var anchor = $("#act-settle");
-    var msg = "🌙 정산 완료 · 텃밭 +1 · 별사탕 +" + settleStar;
-    floatReward(anchor, msg);
-    if (streakSeed) floatReward($("#save-banner-sec"), "🌱 " + cropName(streakSeed) + " 씨앗");
-  }
-
-  /* ---------- 채집 (forage) ---------- */
-  function renderForage(keepResult) {
-    var wrap = $("#forage-places"); if (!wrap) return;
-    wrap.innerHTML = "";
-    var places = PD.forage || {};
-    Object.keys(places).forEach(function (pid) {
-      var f = places[pid];
-      var done = !!state.foragedToday[pid];
-      var card = document.createElement("button");
-      card.type = "button";
-      card.className = "forage-place" + (done ? " done" : "");
-      card.innerHTML =
-        '<span class="forage-emoji">' + f.emoji + "</span>" +
-        '<span class="forage-name">' + esc(f.name) + "</span>" +
-        '<span class="forage-desc">' + esc(f.desc) + "</span>" +
-        '<span class="forage-cta">' + (done ? "오늘 채집함" : "채집하기") + "</span>";
-      if (!done) card.addEventListener("click", function () { forageAt(pid); });
-      wrap.appendChild(card);
-    });
-    if (!keepResult) { var res = $("#forage-result"); if (res) res.hidden = true; }
-  }
+  /* ---------- 채집 (forage) — 홈 씬 핫스팟 터치 ----------
+   * 결과 DOM/모달은 폐기. 핵심(addMaterial/addSeed/persist)만 유지하고 loot을 반환해
+   * 핫스팟 모션의 onDone에서 비행할 대표 재료를 고를 수 있게 한다. */
   function forageAt(pid) {
     var f = (PD.forage || {})[pid];
-    if (!f || state.foragedToday[pid]) return;
+    if (!f || state.foragedToday[pid]) return null;
     state.foragedToday[pid] = true;
-    var loot = [];   // {id, kind:'mat'|'seed'}
+    var loot = [];   // {id, seed:bool}
     var n = 1 + Math.floor(Math.random() * 2) + Math.floor(Math.random() * 2);   // 1~3개, 2 중심 가중치(2d2-1)
     for (var i = 0; i < n; i++) {
       var id = f.pool[Math.floor(Math.random() * f.pool.length)];
@@ -340,25 +308,169 @@
       addSeed(c, 1); loot.push({ id: c, seed: true });
     }
     updateWorkshopBadge(); persist();
-    // 결과 표시
-    var res = $("#forage-result"), box = $("#forage-loot");
-    if (box) {
-      box.innerHTML = "";
-      loot.forEach(function (it) {
-        if (it.seed) {
-          var s = document.createElement("span"); s.className = "mat-chip k-crop";
-          s.innerHTML = '<img src="assets/seeds/seed_' + it.id + '.png" alt="" /><b>' + esc(cropName(it.id)) + " 씨앗</b>";
-          box.appendChild(s);
-        } else {
-          var m = matInfo(it.id);
-          var el = document.createElement("span"); el.className = "mat-chip k-" + m.kind;
-          el.innerHTML = matVisual(m) + "<b>" + esc(m.name) + "</b>";
-          box.appendChild(el);
-        }
-      });
+    return loot;
+  }
+
+  /* ===========================================================================
+   * 채집 모션 (motion-engineer 설계) — 핫스팟 터치 → 재료 아이콘이 HUD로 비행
+   * 성능: 파티클·ripple 풀링, rAF 단일 루프, 동시 비행 6개 캡, will-change는 비행 엘만.
+   * REDUCED: 모든 모션 건너뛰고 결과(forageAt)만 즉시 반영.
+   * ======================================================================== */
+  var flyParticles = [];   // 비행 중인 파티클 {el, t, dur, x0,y0, x1,y1, cx,cy, onDone}
+  var flyPool = [];        // 재사용 풀
+  var flyRAF = 0;
+  var ripplePool = [];
+  var FLY_CAP = 6;
+
+  function bezier3(a, b, c, t) {   // 2차 베지어(시작 a, 제어 b, 끝 c)
+    var u = 1 - t;
+    return u * u * a + 2 * u * t * b + c * t * t;
+  }
+
+  function acquireFly() {
+    var el = flyPool.pop();
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "fly-particle";
+      el.style.willChange = "transform, opacity";   // 비행 엘에만
     }
-    if (res) res.hidden = false;
-    renderForage(true);   // 장소 카드 갱신(이 장소는 '오늘 채집함'), 결과는 유지
+    return el;
+  }
+  function releaseFly(el) {
+    el.style.opacity = "0";
+    if (el.parentNode) el.parentNode.removeChild(el);
+    if (flyPool.length < FLY_CAP + 2) flyPool.push(el);
+  }
+
+  function flyTick(now) {
+    flyRAF = 0;
+    var phone = $(".phone"); if (!phone) { flyParticles.length = 0; return; }
+    for (var i = flyParticles.length - 1; i >= 0; i--) {
+      var p = flyParticles[i];
+      if (!p.start) p.start = now;
+      var t = Math.min(1, (now - p.start) / p.dur);
+      var e = t * (2 - t);                       // easeOutQuad
+      var x = bezier3(p.x0, p.cx, p.x1, e);
+      var y = bezier3(p.y0, p.cy, p.y1, e);
+      var s = 1 - 0.45 * e;
+      p.el.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) scale(" + s.toFixed(3) + ")";
+      p.el.style.opacity = (t < 0.85 ? 1 : (1 - (t - 0.85) / 0.15)).toFixed(3);
+      if (t >= 1) {
+        var done = p.onDone; releaseFly(p.el); flyParticles.splice(i, 1);
+        if (done) done();
+      }
+    }
+    if (flyParticles.length) flyRAF = requestAnimationFrame(flyTick);
+  }
+
+  /* 재료 아이콘이 from(핫스팟)→star-chip으로 포물선 비행. onDone은 도착 시 1회. */
+  function flyToHud(fromEl, matInfoObj, onDone) {
+    var phone = $(".phone"), target = $(".star-chip");
+    if (!phone || !target || flyParticles.length >= FLY_CAP) { if (onDone) onDone(); return; }
+    var pr = phone.getBoundingClientRect();
+    var fr = fromEl.getBoundingClientRect();
+    var tr = target.getBoundingClientRect();
+    var x0 = fr.left - pr.left + fr.width / 2;
+    var y0 = fr.top - pr.top + fr.height / 2;
+    var x1 = tr.left - pr.left + tr.width / 2;
+    var y1 = tr.top - pr.top + tr.height / 2;
+    var el = acquireFly();
+    el.innerHTML = matInfoObj && matInfoObj.img
+      ? '<img src="' + matInfoObj.img + '" alt="" />'
+      : '<span>' + ((matInfoObj && matInfoObj.emoji) || "🌿") + "</span>";
+    el.style.opacity = "1";
+    el.style.transform = "translate(" + x0.toFixed(1) + "px," + y0.toFixed(1) + "px) scale(1)";
+    phone.appendChild(el);
+    var pdata = {
+      el: el, start: 0, dur: 620,
+      x0: x0, y0: y0, x1: x1, y1: y1,
+      cx: (x0 + x1) / 2 + (x1 - x0) * 0.12,        // 살짝 위로 솟는 제어점
+      cy: Math.min(y0, y1) - 70,
+      onDone: onDone
+    };
+    flyParticles.push(pdata);
+    if (!flyRAF) flyRAF = requestAnimationFrame(flyTick);
+    // orphan 안전망: rAF 체인이 끊겨도 반드시 정리 + onDone 1회
+    setTimeout(function () {
+      var idx = flyParticles.indexOf(pdata);
+      if (idx >= 0) { flyParticles.splice(idx, 1); releaseFly(pdata.el); if (pdata.onDone) pdata.onDone(); }
+    }, pdata.dur + 400);
+  }
+
+  /* 터치 ripple (풀링) */
+  function spawnRipple(btn, e) {
+    if (REDUCED) return;
+    var r = ripplePool.pop();
+    if (!r) { r = document.createElement("span"); r.className = "scene-ripple"; }
+    var rect = btn.getBoundingClientRect();
+    var pt = (e && e.touches && e.touches[0]) || e;
+    var cx = pt ? (pt.clientX - rect.left) : rect.width / 2;
+    var cy = pt ? (pt.clientY - rect.top) : rect.height / 2;
+    r.style.left = cx + "px"; r.style.top = cy + "px";
+    btn.appendChild(r);
+    r.classList.remove("go"); void r.offsetWidth; r.classList.add("go");
+    setTimeout(function () {
+      if (r.parentNode) r.parentNode.removeChild(r);
+      if (ripplePool.length < 4) ripplePool.push(r);
+    }, 560);
+  }
+
+  /* 대표 재료(첫 비-씨앗, 없으면 첫 씨앗) info — 비행 아이콘용 */
+  function lootLeadInfo(loot) {
+    if (!loot || !loot.length) return { emoji: "🌿" };
+    var lead = null;
+    for (var i = 0; i < loot.length; i++) { if (!loot[i].seed) { lead = loot[i]; break; } }
+    if (!lead) lead = loot[0];
+    if (lead.seed) return { img: "assets/seeds/seed_" + lead.id + ".png" };
+    return matInfo(lead.id);
+  }
+
+  function markHotspotDone(btn) {
+    btn.classList.add("done");
+    btn.disabled = true;
+    btn.setAttribute("aria-disabled", "true");
+  }
+
+  /* 핫스팟 1회 채집 연출: ripple → 아이콘 흔들기 → 비행(도착 시 forageAt+done+HUD pop) */
+  function playHarvestMotion(btn, pid, e) {
+    if (state.foragedToday[pid] || btn.classList.contains("done")) return;
+    // 게임 로직은 즉시 확정(연출과 무관) — 채집·done·HUD를 바로 처리
+    var loot = forageAt(pid);
+    if (!loot) return;
+    markHotspotDone(btn);
+    popHud();
+    if (REDUCED) return;
+    // 이하 순수 연출
+    spawnRipple(btn, e);
+    var icon = btn.querySelector(".hotspot-icon");
+    if (icon && icon.animate) {
+      icon.animate(
+        [{ transform: "scale(1) rotate(0)" }, { transform: "scale(1.3) rotate(-12deg)" },
+         { transform: "scale(1.15) rotate(10deg)" }, { transform: "scale(1) rotate(0)" }],
+        { duration: 340, easing: "ease-out" }
+      );
+    }
+    flyToHud(btn, lootLeadInfo(loot), null);
+  }
+
+  function popHud() {
+    var chip = $(".star-chip"); if (!chip) return;
+    chip.classList.remove("pop"); void chip.offsetWidth; chip.classList.add("pop");
+    setTimeout(function () { chip.classList.remove("pop"); }, 420);
+  }
+
+  /* 핫스팟 초기화/상태 반영 (홈 표시될 때마다 호출) */
+  function initSceneHotspots() {
+    $$("#scene-hotspots .hotspot").forEach(function (btn) {
+      var pid = btn.dataset.place;
+      var done = !!state.foragedToday[pid];
+      btn.classList.toggle("done", done);
+      btn.disabled = done;
+      btn.setAttribute("aria-disabled", done ? "true" : "false");
+      if (btn._hsWired) return;       // 리스너 1회만
+      btn._hsWired = true;
+      btn.addEventListener("click", function (e) { playHarvestMotion(btn, pid, e); });
+    });
   }
 
   /* ---------- 상점 (shop) ---------- */
@@ -605,6 +717,7 @@
     var cx = state.potionCodex[p.id];
     if (!cx) state.potionCodex[p.id] = { firstAt: Date.now(), bestQuality: q, count: 1 };
     else { cx.bestQuality = Math.max(cx.bestQuality, q); cx.count += 1; }
+    growPlotsOnSave();   // 제조 1개 = 텃밭 전체 +1단계(정산이 하던 역할을 제조로 이동)
     // 보상
     var reward = 10 + q * 7;
     state.stardust += reward; gainXp(reward); updateHud();
@@ -624,6 +737,7 @@
     if ($("#brew-reduced-btn")) $("#brew-reduced-btn").hidden = true;
     $("#stir-tip").textContent = "";
     updateWorkshopBadge();
+    updateBanner();   // 도감 진행도 갱신
     persist();
   }
   function closeBrew() { $("#brew-stage").hidden = true; renderWorkshop(); }
@@ -691,7 +805,7 @@
         cell.innerHTML =
           '<img class="plot-crop growing-img" style="opacity:' + (0.45 + ratio * 0.55).toFixed(2) + ';transform:scale(' + (0.6 + ratio * 0.4).toFixed(2) + ')" src="assets/crops/' + p.cropId + '.png" alt="" />' +
           '<span class="plot-label">' + esc(cropName(p.cropId)) + "</span>" +
-          '<span class="plot-progress">' + left + "번 더 정산하면 수확 🌱</span>";
+          '<span class="plot-progress">' + left + "번 더 제조하면 수확 🌱</span>";
       }
       grid.appendChild(cell);
     });
@@ -713,7 +827,7 @@
     seedKeys.forEach(function (c) {
       var b = document.createElement("button"); b.type = "button"; b.className = "seed-pick";
       var g = PD.crops[c] ? PD.crops[c].grow : 3;
-      b.innerHTML = '<img src="assets/seeds/seed_' + c + '.png" alt="" /><b>' + esc(cropName(c)) + '</b><small>정산 ' + g + '회</small>';
+      b.innerHTML = '<img src="assets/seeds/seed_' + c + '.png" alt="" /><b>' + esc(cropName(c)) + '</b><small>제조 ' + g + '회</small>';
       b.addEventListener("click", function () { plant(plotIdx, c); picker.hidden = true; });
       listEl.appendChild(b);
     });
@@ -767,13 +881,12 @@
 
   /* ---------- init ---------- */
   function wire() {
-    // 홈 액션: 잠자리 정산 / 채집 / 공방
-    var settleBtn = $("#act-settle"); if (settleBtn) settleBtn.addEventListener("click", doSettle);
-    var forageBtn = $("#act-forage"); if (forageBtn) forageBtn.addEventListener("click", function () { openModal("forage"); });
+    // 홈 액션: 공방 / 텃밭 (채집은 씬 핫스팟 터치로, 정산은 폐기)
     var wsBtn = $("#act-workshop"); if (wsBtn) wsBtn.addEventListener("click", function () { openModal("workshop"); });
-    // 홈 NPC 탭 → NPC 대화 모달
-    $("#home-npc").addEventListener("click", function () { openModal("npc"); });
-    $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal("npc"); } });
+    var gdBtn = $("#act-garden"); if (gdBtn) gdBtn.addEventListener("click", function () { openModal("garden"); });
+    // 홈 NPC 탭 → 점프 반응 후 NPC 대화 모달
+    $("#home-npc").addEventListener("click", function () { reactHomeNpc(); openModal("npc"); });
+    $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); reactHomeNpc(); openModal("npc"); } });
     // 홈 말풍선 탭 → 그 자리에서 다음 대사 (NPC와 잡담)
     var bubble = $("#home-bubble"); if (bubble) bubble.addEventListener("click", homeTalk);
     // NPC 대화창 탭 → 다음 대사
@@ -809,8 +922,10 @@
     ensurePlots(); ensureRequest();
 
     if (isNewDay) {
-      // 새 날: streak·별사탕·레벨·인벤토리는 유지, 일일 플래그(정산/채집)만 리셋
-      state.settledToday = false; state.foragedToday = {};
+      // 새 날: 별사탕·레벨·인벤토리는 유지, 채집 가용만 리셋(정산이 하던 일일 리셋을 날짜 기준으로 대체)
+      state.foragedToday = {};
+      state.settledToday = false;       // 미사용이나 세이브 호환 위해 초기화
+      rotateRequestIfDone();            // 완료된 의뢰면 새 날에 다음 의뢰로 교체(정산이 하던 역할)
       if (restored) persist();
     }
     if (!restored) {
