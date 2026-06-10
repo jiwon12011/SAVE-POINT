@@ -20,6 +20,13 @@
   };
 
   var MODE_LABEL = { survival: "Survival", easy: "Easy", normal: "Normal", challenge: "Challenge" };
+  var MODE_EMOJI = { survival: "🛡️", easy: "💧", normal: "⚡", challenge: "⚔️" };
+  var MODE_BANNER = {
+    survival: "오늘은 회복이 먼저예요. 작은 것 하나면 충분해요. 🌿",
+    easy:     "여유가 조금 있는 날이에요. 가볍게 한 걸음이면 돼요. ✨",
+    normal:   "무난한 하루네요. 본업 한 블록이면 오늘 몫은 충분해요. ⚡",
+    challenge:"컨디션 좋은 날이에요. 오늘 보스를 정면으로 마주해요. ⚔️"
+  };
   var MODE_COPY = {
     survival: "HP와 MP가 낮은 날입니다. 오늘의 목표는 완성이 아니라, 다시 켤 수 있게 남겨두는 것.",
     easy: "여유가 조금 있는 날. 가볍게 한 걸음만 떼도 충분해요.",
@@ -62,6 +69,77 @@
   var $$ = function (s) { return Array.prototype.slice.call(document.querySelectorAll(s)); };
   function esc(s) { return String(s).replace(/[&<>"]/g, function (m) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m]; }); }
   function byId(id) { var l = window.Engine.AILMENTS; for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
+
+  /* ---------- 뷰 클래스 (배경 전환) ---------- */
+  function setViewClass(name) {
+    var phone = $(".phone");
+    if (!phone) return;
+    ["home", "checkin", "status", "quest", "save", "records", "npc"].forEach(function (v) {
+      phone.classList.remove("view-" + v);
+    });
+    phone.classList.add("view-" + (name || "home"));
+  }
+
+  /* ---------- 스플래시 ---------- */
+  function initSplash() {
+    var splash = $("#splash");
+    if (!splash) return;
+    setTimeout(function () {
+      splash.classList.add("done");
+      setTimeout(function () { splash.hidden = true; }, 750);
+    }, 2000);
+  }
+
+  /* ---------- 홈 배너 업데이트 ---------- */
+  function updateBanner() {
+    var s = state.status;
+    var modeRow = $("#mode-row");
+    var hints = $("#checkin-hints");
+    var banner = $("#save-banner-sec");
+
+    if (!s) {
+      if (modeRow) modeRow.hidden = true;
+      if (hints) hints.hidden = false;
+      if (banner) banner.classList.remove("saved-today");
+      var msg = $("#banner-msg");
+      if (msg) msg.textContent = "오늘의 나를 저장하고, 다시 시작해요.";
+      return;
+    }
+
+    if (hints) hints.hidden = true;
+
+    if (modeRow) {
+      modeRow.hidden = false;
+      var pill = $("#mode-badge-pill");
+      if (pill) {
+        pill.textContent = MODE_EMOJI[s.mode] + " " + MODE_LABEL[s.mode];
+        pill.className = "mode-pill mode-" + s.mode;
+      }
+      var q = state.quests;
+      var hint = $("#quest-hint");
+      if (hint && q) {
+        var checkable = q.main.length + q.sub.length;
+        hint.textContent = "퀘스트 " + checkable + "개 · " + q.timeBox + "분";
+      }
+    }
+
+    var bannerMsg = $("#banner-msg");
+    if (bannerMsg) {
+      bannerMsg.textContent = state.savedToday
+        ? "오늘의 모험가가 저장되었습니다. 수고했어요. ✨"
+        : MODE_BANNER[s.mode];
+    }
+    if (banner) banner.classList.toggle("saved-today", state.savedToday);
+  }
+
+  /* ---------- NPC 세이브 대사 ---------- */
+  function pickDialogueForSave() {
+    if (!state.data.dialogue) return "";
+    var npc = state.npc || "healer";
+    var pool = ((state.data.dialogue.dialogues || {})[npc] || {})["save_complete"] || [];
+    if (!pool.length) return "";
+    return pool[Math.abs(state.streak) % pool.length];
+  }
 
   function npcSprite(npc, expr) {
     var have = SPRITES[npc] || ["default"];
@@ -143,32 +221,134 @@
   }
   function openModal(name) {
     if (name === "home") { closeModal(); return; }
+    setViewClass(name);
     if (name === "status") renderStatus();
     if (name === "quest") renderQuests();
     if (name === "records") renderRecords();
     if (name === "save") doSave();
+    if (name === "npc") renderNpcModalContent();
     $("#modal-layer").hidden = false;
     $$(".modal").forEach(function (m) { m.classList.toggle("show", m.id === "modal-" + name); });
     setNav(name);
   }
   function closeModal() {
+    setViewClass("home");
     $("#modal-layer").hidden = true;
     $$(".modal").forEach(function (m) { m.classList.remove("show"); });
     setNav("home");
+    updateBanner();
+  }
+
+  /* ---------- NPC 대화 모달 ---------- */
+  var NPC_AVAIL = ["healer", "innkeeper"];
+  var NPC_LOCKED = ["guildmaster", "rival", "wizard"];
+  var npcDlgLines = [], npcDlgIdx = 0, npcDlgType = { timer: null, full: "", typing: false };
+
+  function typeIntoNpc(text) {
+    var el = $("#npc-dialogue-text");
+    var arrow = $("#npc-next-arrow");
+    if (!el) return;
+    if (arrow) arrow.classList.remove("ready");
+    npcDlgType.full = text; clearInterval(npcDlgType.timer);
+    if (REDUCED) { el.textContent = text; npcDlgType.typing = false; if (arrow) arrow.classList.add("ready"); return; }
+    el.textContent = ""; npcDlgType.typing = true; var i = 0;
+    npcDlgType.timer = setInterval(function () {
+      el.textContent = npcDlgType.full.slice(0, ++i);
+      if (i >= npcDlgType.full.length) { clearInterval(npcDlgType.timer); npcDlgType.typing = false; if (arrow) arrow.classList.add("ready"); }
+    }, 28);
+  }
+
+  function buildNpcDialogueLines(npc) {
+    if (!state.data.dialogue) return [{ text: "오늘 체크인을 먼저 해보면 어때? 30초면 돼. 🌿", expr: "default" }];
+    var s = state.status;
+    var dialogues = state.data.dialogue.dialogues;
+    var npcPool = dialogues[npc] || {};
+    var seed = s ? (s.base + (state.checkin.ailments || []).length) : 0;
+    var lines = [];
+
+    var cat = s ? s.category : "first_welcome";
+    var l1 = window.Engine.pickDialogue({ dialogues: dialogues }, npc, cat, seed);
+    if (l1) lines.push({ text: l1, expr: s ? s.expression : "default" });
+
+    if (s) {
+      var questPool = npcPool["quest_offer"] || [];
+      if (questPool.length) lines.push({ text: questPool[Math.abs(seed + 1) % questPool.length], expr: "cheer" });
+    }
+
+    var onePool = npcPool["one_liner"] || [];
+    if (onePool.length) lines.push({ text: onePool[Math.abs(seed + 2) % onePool.length], expr: "relax" });
+
+    return lines.length ? lines : [{ text: "...", expr: "default" }];
+  }
+
+  function renderNpcModalContent() {
+    var npc = state.npc || "healer";
+    var nameEl = $("#npc-modal-name"); if (nameEl) nameEl.textContent = NPC_NAME[npc];
+    var plate = $("#npc-name-plate"); if (plate) plate.textContent = NPC_NAME[npc];
+    npcDlgLines = buildNpcDialogueLines(npc); npcDlgIdx = 0;
+    var portrait = $("#npc-portrait"); if (portrait) portrait.src = npcSprite(npc, npcDlgLines[0].expr);
+    typeIntoNpc(npcDlgLines[0].text);
+
+    var container = $("#npc-switch"); if (!container) return;
+    container.innerHTML = "";
+    NPC_AVAIL.concat(NPC_LOCKED).forEach(function (npcId) {
+      var available = NPC_AVAIL.indexOf(npcId) >= 0;
+      var btn = document.createElement("button");
+      btn.className = "npc-card" + (npcId === npc ? " selected" : "") + (!available ? " locked" : "");
+      btn.innerHTML = '<img src="assets/' + npcId + '-default.png" alt="" /><span>' + NPC_NAME[npcId] + "</span>";
+      if (available) {
+        btn.addEventListener("click", function () {
+          state.npc = npcId; state.npcMet[npcId] = true;
+          renderNpcModalContent(); persist();
+        });
+      }
+      container.appendChild(btn);
+    });
+  }
+
+  function advanceNpcDialogue() {
+    if (npcDlgType.typing) {
+      clearInterval(npcDlgType.timer); npcDlgType.typing = false;
+      var el = $("#npc-dialogue-text"); if (el) el.textContent = npcDlgType.full;
+      var arrow = $("#npc-next-arrow"); if (arrow) arrow.classList.add("ready");
+      return;
+    }
+    npcDlgIdx = (npcDlgIdx + 1) % npcDlgLines.length;
+    var line = npcDlgLines[npcDlgIdx];
+    var portrait = $("#npc-portrait"); if (portrait) portrait.src = npcSprite(state.npc || "healer", line.expr);
+    typeIntoNpc(line.text);
   }
 
   /* ---------- 홈 NPC ---------- */
   var homeLines = [], homeIdx = 0, homeType = { timer: null, full: "", typing: false };
 
+  function timeGreeting() {
+    var h = new Date().getHours();
+    if (h < 6)  return "새벽에 왔구나";
+    if (h < 11) return "아침이야";
+    if (h < 17) return "오후네";
+    if (h < 21) return "저녁이야";
+    return "밤이 깊었네";
+  }
+
+  var PRE_CHECKIN_LINES = [
+    { text: "안녕, 모험가. 오늘 HP는 어때? 30초만 줘봐. 🗡️", expr: "default" },
+    { text: "여기는 세이브 포인트야. 아무것도 못 해도 저장은 돼. 그게 이 앱의 전부야. 🌿", expr: "relax" },
+    { text: "오늘 컨디션에 맞는 퀘스트를 같이 찾아볼게. 체크인 해봐. ✨", expr: "cheer" }
+  ];
+
   function buildHomeLines(npc) {
     var s = state.status;
-    // NPC는 수치를 직접 읽지 않고 감성 진단으로 말한다(수치는 상태창 모달에서 확인).
     var warm = window.Engine.pickDialogue({ dialogues: state.data.dialogue.dialogues }, npc, s.category, s.base + state.checkin.ailments.length);
-    // 대사마다 어울리는 표정: 진단=상태표정 → 위로=comfort/cheer → 마무리=relax/joy
+    var greet = timeGreeting();
+    var openingText = greet + ". " + DIAGNOSIS[s.mode];
+    var questLine = s.mode === "survival"
+      ? "퀘스트는 1개야. " + (state.quests ? state.quests.timeBox : 5) + "분짜리. 그것 하나면 충분해."
+      : "퀘스트 " + (state.quests ? (state.quests.main.length + state.quests.sub.length) : 0) + "개 기다리고 있어. 아래 버튼에서 받아봐.";
     return [
-      { text: DIAGNOSIS[s.mode], expr: s.expression },
+      { text: openingText, expr: s.expression },
       { text: warm, expr: s.mode === "challenge" ? "cheer" : "comfort" },
-      { text: "오늘의 퀘스트는 아래 버튼에서 받을 수 있어요. 천천히 와요.", expr: s.mode === "survival" ? "relax" : "joy" }
+      { text: questLine, expr: s.mode === "survival" ? "relax" : "joy" }
     ];
   }
   function setHomeSprite(expr) {
@@ -177,11 +357,13 @@
   }
   function updateHome() {
     var s = state.status;
-    $("#home-npc-name").textContent = NPC_NAME[state.npc];
-    homeLines = s ? buildHomeLines(state.npc) : [{ text: "안녕하세요. 오늘 체크인부터 해볼까요?", expr: "default" }];
+    var npc = state.npc || "healer";
+    $("#home-npc-name").textContent = NPC_NAME[npc];
+    homeLines = s ? buildHomeLines(npc) : PRE_CHECKIN_LINES;
     homeIdx = 0;
     setHomeSprite(homeLines[0].expr);
     typeInto($("#home-speech"), homeLines[0].text);
+    updateBanner();
   }
   function typeInto(el, text) {
     homeType.full = text; clearInterval(homeType.timer);
@@ -245,11 +427,16 @@
       card.addEventListener("click", function () {
         state.completed[key] = !state.completed[key];
         card.classList.toggle("done", state.completed[key]);
-        if (state.completed[key] && !state.rewardedKeys[key]) {
-          state.rewardedKeys[key] = true;
-          var mult = (state.status && state.data.quests.modeParams[state.status.mode].rewardMultiplier) || 1;
-          var r = Math.round(5 * mult);
-          state.stardust += r; gainXp(r); floatReward(card, "+" + r + " ⭐"); persist();
+        if (state.completed[key]) {
+          card.classList.remove("checking");
+          void card.offsetWidth;
+          card.classList.add("checking");
+          if (!state.rewardedKeys[key]) {
+            state.rewardedKeys[key] = true;
+            var mult = (state.status && state.data.quests.modeParams[state.status.mode].rewardMultiplier) || 1;
+            var r = Math.round(5 * mult);
+            state.stardust += r; gainXp(r); floatReward(card, "+" + r + " ⭐"); persist();
+          }
         }
         updateQuestCount();
       });
@@ -287,9 +474,18 @@
     var nb = $("#save-badge");
     if (ls.newBadges && ls.newBadges.length) { nb.hidden = false; nb.textContent = "🏅 칭호 해금: " + ls.newBadges.join(", "); }
     else nb.hidden = true;
-    $("#save-copy").textContent = ls.done === 0
+    var zeroCopy = ls.done === 0
       ? "퀘스트 클리어가 없어도 이 기록은 사라지지 않아요. 오늘도 저장했어요."
-      : ls.done + "개의 퀘스트를 완료했어요. 좋은 하루였네요.";
+      : ls.done + "개의 퀘스트를 완료했어요. 수고했어요.";
+    $("#save-copy").textContent = zeroCopy;
+
+    var npcLine = pickDialogueForSave();
+    var npcEl = $("#npc-save-line");
+    if (npcEl) {
+      if (npcLine) { npcEl.hidden = false; npcEl.textContent = "“" + npcLine + "”"; }
+      else npcEl.hidden = true;
+    }
+    updateBanner();
   }
 
   /* ---------- 생존 기록 · 도감 ---------- */
@@ -341,6 +537,18 @@
     return { hp: lvl("hp"), mp: lvl("mp"), focus: lvl("focus"), ailments: ail, boss: $("#boss-input").value };
   }
 
+  /* ---------- 데일리 리셋 ---------- */
+  var TODAY_KEY = "savepoint_today_date";
+  function checkDailyReset() {
+    var today = new Date().toDateString();
+    var last = localStorage.getItem(TODAY_KEY);
+    if (last !== today) {
+      localStorage.setItem(TODAY_KEY, today);
+      return true;
+    }
+    return false;
+  }
+
   /* ---------- init ---------- */
   function wire() {
     // 스탯 선택
@@ -354,9 +562,15 @@
     $("#act-checkin").addEventListener("click", function () { openModal("checkin"); });
     $("#act-status").addEventListener("click", function () { openModal("status"); });
     $("#act-quest").addEventListener("click", function () { openModal("quest"); });
-    // 홈 NPC 탭 → 대화
-    $("#home-npc").addEventListener("click", homeTalk);
-    $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); homeTalk(); } });
+    // 홈 NPC 탭 → NPC 대화 모달
+    $("#home-npc").addEventListener("click", function () { openModal("npc"); });
+    $("#home-npc").addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal("npc"); } });
+    // NPC 대화창 탭 → 다음 대사
+    var dlgBox = $("#npc-dialogue-box");
+    if (dlgBox) {
+      dlgBox.addEventListener("click", advanceNpcDialogue);
+      dlgBox.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); advanceNpcDialogue(); } });
+    }
     // 체크인 저장
     $("#checkin-save").addEventListener("click", function () { applyCheckin(readCheckinForm()); openModal("status"); });
     // 모달 열기/닫기 (네비, 모달 내 이동 버튼)
@@ -365,17 +579,28 @@
   }
 
   function init() {
-    buildAilmentChips(); wire();
+    buildAilmentChips(); wire(); initSplash();
     function useData(q, d) {
       state.data.quests = q; state.data.dialogue = d;
       var restored = restore();
-      applyCheckin(DEFAULT_CHECKIN);
-      if (!restored) {
+      var isNewDay = checkDailyReset();
+
+      updateHud(); applyHomeTheme(); setViewClass("home");
+
+      if (isNewDay && restored) {
+        // 새 날: streak·별사탕·레벨은 유지, 오늘 체크인은 리셋 → 빈 홈 표시
+        state.status = null; state.quests = null;
+        state.completed = {}; state.rewardedKeys = {}; state.savedToday = false;
+        updateHome();
+      } else if (!restored) {
+        // 첫 방문: 데모 상태로 시작 (앱이 어떻게 생겼는지 보여줌)
         state.badges["first-save"] = true; state.badges["tea-break"] = true; state.badges["survival-day"] = true;
         state.npcMet["healer"] = true;
+        applyCheckin(DEFAULT_CHECKIN);
+      } else {
+        // 같은 날 재방문: 오늘 체크인 상태 유지
+        applyCheckin(DEFAULT_CHECKIN);
       }
-      updateHud();
-      applyHomeTheme();
     }
     if (window.SAVEPOINT_DATA) { useData(window.SAVEPOINT_DATA.quests, window.SAVEPOINT_DATA.dialogue); return; }
     Promise.all([

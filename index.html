@@ -15,6 +15,16 @@
   <body>
     <main class="app-shell">
       <section class="phone">
+        <!-- 스플래시 -->
+        <div id="splash" class="splash-overlay">
+          <div class="splash-inner">
+            <img src="assets/icon-save.png" alt="" class="splash-crystal-img" />
+            <h1 class="splash-title">SAVE POINT</h1>
+            <p class="splash-sub">오늘의 나를 저장하고<br>다시 시작할 힘을 얻는 곳</p>
+            <p class="splash-tagline">잘 못 한 날도, 저장은 됩니다.</p>
+          </div>
+        </div>
+
         <div class="scene-bg"></div>
         <div class="night-vignette"></div>
 
@@ -33,11 +43,15 @@
           </div>
         </header>
 
-        <section class="save-banner">
-          <img src="assets/icon-save.png" alt="" />
-          <div>
+        <section class="save-banner" id="save-banner-sec">
+          <img src="assets/icon-save.png" alt="" id="banner-icon" />
+          <div style="flex:1;min-width:0;">
             <p id="streak-line">연속 세이브 4일</p>
-            <strong>오늘의 나를 저장하고, 다시 시작해요.</strong>
+            <strong id="banner-msg">오늘의 나를 저장하고, 다시 시작해요.</strong>
+            <div class="mode-row" id="mode-row" hidden>
+              <span id="mode-badge-pill" class="mode-pill"></span>
+              <span id="quest-hint" class="quest-hint-text"></span>
+            </div>
           </div>
         </section>
 
@@ -48,14 +62,19 @@
               <strong id="home-npc-name">힐러</strong>
               <p id="home-speech">탭하면 말을 걸 수 있어요.</p>
             </div>
-            <img class="home-npc" id="home-npc" src="assets/healer-comfort.png" alt="NPC"
+            <img class="home-npc" id="home-npc" src="assets/healer-default.png" alt="NPC"
                  tabindex="0" role="button" aria-label="NPC에게 말 걸기" />
           </div>
           <div class="home-actions">
             <button class="big-btn" id="act-checkin">오늘 체크인 하기</button>
             <div class="act-row">
-              <button id="act-status"><img src="assets/icon-hp.png" alt="" />상태창</button>
-              <button id="act-quest"><img src="assets/icon-quest.png" alt="" />오늘의 퀘스트</button>
+              <button id="act-status"><img src="assets/nav-status.png" alt="" />상태창</button>
+              <button id="act-quest"><img src="assets/nav-quest.png" alt="" />오늘의 퀘스트</button>
+            </div>
+            <div id="checkin-hints" class="checkin-hints">
+              <p>❤️ <b>아무것도 못 해도</b> 세이브는 됩니다</p>
+              <p>⚡ <b>오늘 컨디션에 맞는</b> 퀘스트만 제안해요</p>
+              <p>✨ <b>30초 체크인</b> → 별사탕·칭호 해금</p>
             </div>
           </div>
         </div>
@@ -147,9 +166,26 @@
                 <p class="levelup" id="save-levelup" hidden>⭐ LEVEL UP! ⭐</p>
               </div>
               <p class="save-badge" id="save-badge" hidden></p>
+              <p class="npc-save-line" id="npc-save-line" hidden></p>
             </div>
             <button class="ghost-action" data-open="records">기록 보기</button>
             <button class="primary-action" data-close>홈으로</button>
+          </div>
+
+          <!-- NPC 대화 -->
+          <div class="modal" id="modal-npc">
+            <div class="modal-head"><span id="npc-modal-name">힐러</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
+            <div class="modal-body" style="display:flex;flex-direction:column;padding-bottom:0;">
+              <div class="npc-scene">
+                <img class="npc-portrait" id="npc-portrait" src="assets/healer-default.png" alt="" />
+                <div class="dialogue-box" id="npc-dialogue-box" role="button" tabindex="0" aria-label="대화 계속">
+                  <span class="name-plate" id="npc-name-plate">힐러</span>
+                  <p class="dialogue-text" id="npc-dialogue-text">...</p>
+                  <span class="next-arrow" id="npc-next-arrow">▼ 탭해서 계속</span>
+                </div>
+              </div>
+              <div class="npc-switch" id="npc-switch"></div>
+            </div>
           </div>
 
           <!-- 생존 기록 · 도감 -->
@@ -170,6 +206,7 @@
         <nav class="bottom-nav" aria-label="하단 내비게이션">
           <button class="active" data-open="home"><img src="assets/nav-home.png" alt="" />홈</button>
           <button data-open="checkin"><img src="assets/nav-checkin.png" alt="" />체크인</button>
+          <button data-open="npc"><img src="assets/nav-npc.png" alt="" />NPC</button>
           <button data-open="quest"><img src="assets/nav-quest.png" alt="" />퀘스트</button>
           <button data-open="records"><img src="assets/nav-records.png" alt="" />기록</button>
         </nav>
