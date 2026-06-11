@@ -1,184 +1,133 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>달의 공방</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Gugi&family=Gowun+Dodum&family=Quicksand:wght@600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <main class="app-shell">
-      <section class="phone">
-        <!-- 스플래시 -->
-        <div id="splash" class="splash-overlay">
-          <div class="splash-inner">
-            <img src="assets/icon-save.png" alt="" class="splash-crystal-img" />
-            <h1 class="splash-title">달의 공방</h1>
-            <p class="splash-sub">재료를 모아 포션을 빚는<br>작은 연금술 공방</p>
-            <p class="splash-tagline">오늘도 공방 불을 켜요.</p>
-          </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>달빛 조제실</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preload" as="image" href="assets/backgrounds/bg-workshop-alchemy.webp" />
+</head>
+<body>
+  <!-- viewport = 무대 + 도감이 가로로 늘어선 트랙. 도감 진입 시 translateX. -->
+  <div class="viewport" id="viewport">
+    <div class="track" id="track">
+
+      <!-- ============ 무대(조제대) ============ -->
+      <main class="stage" id="stage" aria-label="조제대 무대">
+        <!-- 배경 그림 위에 히트존만 얹는다 -->
+        <div class="stage-bg" aria-hidden="true"></div>
+
+        <!-- 앰비언트: 가마 김 + 반딧불 (저강도 — "오 게임이네" 첫인상) -->
+        <div class="ambient" aria-hidden="true">
+          <span class="steam s1"></span><span class="steam s2"></span><span class="steam s3"></span>
+          <span class="firefly f1"></span><span class="firefly f2"></span>
         </div>
 
-        <div class="scene-bg"></div>
-        <div class="night-vignette"></div>
-
-        <header class="topbar">
-          <div>
-            <p class="date-label" id="date-label">6월 10일 수요일</p>
-            <h1>달의 공방</h1>
-            <p class="tagline">밤마다 한 병씩, 포션을 빚는 작은 공방.</p>
+        <!-- 상단 HUD: 별사탕 + 도감 진행 (얇은 글래스 바) -->
+        <header class="hud" id="hud">
+          <div class="hud-item star">
+            <img src="assets/icon-star-candy.png" alt="별사탕" class="hud-icon" />
+            <span id="starCount">0</span>
           </div>
-          <div class="hud">
-            <button class="lv-chip" id="lv-chip" aria-label="레벨">
-              <b id="hud-lv">Lv.7</b>
-              <span class="xp"><i id="hud-xp"></i></span>
-            </button>
-            <div class="star-chip"><img src="assets/icon-star-candy.png" alt="별사탕" /><b id="hud-stardust">0</b></div>
-            <div class="star-chip codex-chip" aria-label="포션 도감"><span class="codex-ic">📖</span><b id="codex-prog">0/12</b></div>
+          <div class="hud-item dayProg">
+            <span class="hud-label">손님</span>
+            <span id="custProg">0</span><span class="hud-dim">/0</span>
+          </div>
+          <div class="hud-item codexProg">
+            <span class="hud-label">도감</span>
+            <span id="codexCount">0</span><span class="hud-dim" id="codexTotal">/3</span>
           </div>
         </header>
 
-        <!-- 홈: NPC가 배경 위에 서 있는 공방 씬 + 채집 핫스팟 -->
-        <div class="home-base">
-          <div class="home-stage">
-            <div class="scene-hotspots" id="scene-hotspots" aria-hidden="false">
-              <button class="hotspot" data-place="forest" style="--hx:12%;--hy:30%" aria-label="달빛 숲 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">🌿</span></button>
-              <button class="hotspot" data-place="cave"   style="--hx:88%;--hy:38%" aria-label="안개 동굴 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">🔮</span></button>
-              <button class="hotspot" data-place="pond"   style="--hx:13%;--hy:84%" aria-label="공허 연못 채집"><span class="hotspot-idle"></span><span class="hotspot-icon">💧</span></button>
-            </div>
-            <div class="home-bubble" id="home-bubble" role="button" tabindex="0" aria-label="대화 계속">
-              <strong id="home-npc-name">힐러</strong>
-              <p id="home-speech">오늘 공방에 누가 찾아왔을까요?</p>
-              <div class="bubble-action" id="bubble-action" hidden></div>
-              <span class="bubble-next" id="bubble-next" hidden>▼ 탭해서 계속</span>
-            </div>
-            <img class="home-npc" id="home-npc" src="assets/healer-default.png" alt="NPC"
-                 tabindex="0" role="button" aria-label="NPC에게 말 걸기" />
+        <!-- 결정 손님: 아치창에 떠서 발광 + 말풍선 -->
+        <section class="customer" id="customer" aria-label="결정 손님">
+          <div class="speech" id="speech">
+            <span id="speechText">…</span>
+            <span class="speech-mod" id="speechMod"></span>
           </div>
+          <img src="assets/ailment-sleep.png" alt="졸린 달" class="customer-sprite" id="customerSprite" />
+        </section>
+
+        <!-- 가마(주인공): 글래스 드롭존, 액체색 = --liquid -->
+        <section class="cauldron" id="cauldron" aria-label="가마">
+          <div class="cauldron-glow" id="cauldronGlow" aria-hidden="true"></div>
+          <div class="cauldron-liquid" id="cauldronLiquid" aria-hidden="true"></div>
+          <div class="cauldron-ripple" id="cauldronRipple" aria-hidden="true"></div>
+          <div class="cauldron-hint" id="cauldronHint">가루를 넣어요</div>
+        </section>
+
+        <!-- 절구: 가마 상판에 겹쳐 띄움(독립 높이 0). 약초 올리고 길게눌러 빻기 -->
+        <section class="mortar" id="mortar" aria-label="절구">
+          <div class="mortar-ring" id="mortarRing" aria-hidden="true"></div>
+          <div class="mortar-bowl" id="mortarBowl">
+            <img class="mortar-herb" id="mortarHerb" alt="" hidden />
+            <div class="grind-gauge" id="grindGauge" aria-hidden="true"></div>
+          </div>
+          <div class="mortar-hint" id="mortarHint">약초를 올려요</div>
+        </section>
+
+        <!-- 봉인 병(색 무르익으면 활성) -->
+        <button class="bottle" id="bottle" aria-label="병으로 봉인" disabled>
+          <span class="bottle-cap" aria-hidden="true"></span>
+          <span class="bottle-label">봉인</span>
+        </button>
+
+        <!-- 다음 행동 안내: 제스처 흐름 칩(현재 단계 강조) — "뭘 해야 하지" 제거 -->
+        <div class="gesture-flow" id="gestureFlow" aria-hidden="true">
+          <span class="gf-step" data-step="grind">절구</span>
+          <span class="gf-arrow">→</span>
+          <span class="gf-step" data-step="pour">가마</span>
+          <span class="gf-arrow">→</span>
+          <span class="gf-step" data-step="seal">봉인</span>
         </div>
 
-        <!-- 팝업(모달) 레이어 -->
-        <div class="modal-layer" id="modal-layer" hidden>
-          <div class="modal-backdrop" data-close></div>
+        <!-- 약초 서랍(하단): 56×72 칩, 드래그 소스 -->
+        <footer class="drawer" id="drawer" aria-label="약초 서랍"></footer>
 
-          <!-- 상점 (Shop) -->
-          <div class="modal" id="modal-shop">
-            <div class="modal-head"><span>잡화 상점 · <b id="shop-stardust">⭐ 0</b></span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
-            <div class="modal-body">
-              <p class="garden-hint">별사탕으로 씨앗과 기본 재료를 살 수 있어요. 🛒</p>
-              <h4 class="ws-title">씨앗</h4>
-              <div class="shop-grid" id="shop-seeds"></div>
-              <h4 class="ws-title">기본 결정체</h4>
-              <div class="shop-grid" id="shop-materials"></div>
-            </div>
-            <button class="ghost-action" data-open="workshop">🧪 공방으로</button>
-          </div>
+        <!-- 도감 진입: 하단 모서리 책 오브젝트(디제틱) -->
+        <button class="codex-book" id="codexBook" aria-label="도감 열기">
+          <span class="book-spine" aria-hidden="true"></span>
+        </button>
+      </main>
 
-          <!-- 공방 (Workshop) -->
-          <div class="modal" id="modal-workshop">
-            <div class="modal-head"><span>밤의 공방</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
-            <div class="modal-body">
-              <!-- 상단 씬: 마법사가 공방에 서 있음 -->
-              <div class="ws-scene">
-                <div class="ws-bubble" aria-live="polite">
-                  <strong>마법사</strong>
-                  <p id="workshop-mentor-line">재료를 골라 포션을 만들어요.</p>
-                </div>
-                <img class="ws-npc ws-npc-wizard" id="workshop-mentor-img" src="assets/wizard-default.png" alt="마법사" />
-              </div>
-
-              <!-- 하단 글래스 패널: 기능 UI -->
-              <div class="ws-panel">
-                <div class="ws-request" id="workshop-request" hidden></div>
-
-                <h4 class="ws-title">내 재료</h4>
-                <div class="ws-materials" id="workshop-materials"></div>
-
-                <h4 class="ws-title">제조 가능한 포션</h4>
-                <div class="ws-potions" id="workshop-potions"></div>
-              </div>
-
-              <!-- 휘젓기 제조 오버레이 -->
-              <div class="brew-stage" id="brew-stage" hidden>
-                <button class="brew-cancel" id="brew-cancel" type="button" aria-label="취소">← 돌아가기</button>
-                <h3 id="brew-title">포션 제조</h3>
-                <div class="brew-ingredients" id="brew-ingredients"></div>
-                <div class="brew-flask" id="brew-flask">
-                  <div class="brew-liquid" id="brew-liquid"></div>
-                  <div class="stir-pad" id="stir-pad"><span class="stir-swirl">🌀</span></div>
-                </div>
-                <p class="stir-tip" id="stir-tip">플라스크 위를 빙글빙글 저어요.</p>
-                <button class="primary-action" id="brew-reduced-btn" hidden>제조하기</button>
-
-                <div class="brew-done" id="brew-done" hidden>
-                  <b id="brew-result-name">포션</b>
-                  <span class="brew-quality" id="brew-result-quality"></span>
-                  <span class="brew-reward" id="brew-result-reward"></span>
-                  <p class="brew-codex-note" id="brew-result-codex-note" hidden></p>
-                  <p class="brew-mentor" id="brew-result-mentor"></p>
-                  <button class="primary-action" id="brew-done-btn">완성! 선반에 올리기</button>
-                </div>
-              </div>
-            </div>
-            <button class="ghost-action" data-open="garden">🌱 텃밭으로</button>
-          </div>
-
-          <!-- 텃밭 (Garden) -->
-          <div class="modal" id="modal-garden">
-            <div class="modal-head"><span>나의 텃밭</span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
-            <div class="modal-body">
-              <!-- 상단 씬: 힐러가 텃밭에 서 있음 -->
-              <div class="ws-scene">
-                <div class="ws-bubble" aria-live="polite">
-                  <strong>힐러</strong>
-                  <p>밤의 침실에서 식물을 가꿔요 🌙</p>
-                </div>
-                <img class="ws-npc ws-npc-healer" src="assets/healer-default.png" alt="힐러" />
-              </div>
-
-              <!-- 하단 글래스 패널: 기능 UI -->
-              <div class="ws-panel garden-panel">
-                <div class="garden-guide">씨앗을 심고 포션을 빚을 때마다 한 단계씩 자라요. 수확한 작물은 공방 재료가 되고, 시들지 않으니 천천히 해도 괜찮아요. 🌿</div>
-                <div class="garden-plots" id="garden-plots"></div>
-                <h4 class="ws-title">보유 씨앗</h4>
-                <div class="garden-seeds" id="garden-seeds"></div>
-              </div>
-
-              <div class="seed-picker" id="seed-picker" hidden>
-                <div class="seed-picker-head"><span>심을 씨앗 고르기</span><button id="seed-picker-close" aria-label="닫기">✕</button></div>
-                <div class="seed-picker-list" id="seed-picker-list"></div>
-              </div>
-            </div>
-            <button class="ghost-action" data-open="workshop">🧪 공방으로</button>
-          </div>
-
-          <!-- 포션 도감 (Codex) -->
-          <div class="modal" id="modal-codex">
-            <div class="modal-head"><span>포션 도감 · <b id="codex-count">0 / 12</b></span><button class="modal-close" data-close aria-label="닫기">✕</button></div>
-            <div class="modal-body">
-              <div class="codex-grid" id="codex-grid"></div>
-            </div>
-            <button class="ghost-action" data-open="workshop">🧪 공방으로</button>
-          </div>
+      <!-- ============ 도감 패널(밀어내는 슬라이드, 모달 아님) ============ -->
+      <aside class="codex-panel" id="codexPanel" aria-label="도감">
+        <div class="codex-bg" aria-hidden="true"></div>
+        <div class="codex-head">
+          <button class="codex-close" id="codexClose" aria-label="도감 닫기">‹ 닫기</button>
+          <h2 class="codex-title">잠든 정령들의 선반</h2>
         </div>
+        <div class="codex-shelf" id="codexShelf"></div>
+      </aside>
+    </div>
+  </div>
 
-        <nav class="bottom-nav" aria-label="하단 내비게이션">
-          <button class="active" data-open="home"><img src="assets/nav-home.png" alt="" />홈</button>
-          <button data-open="workshop"><span class="nav-emoji">🧪</span>공방<i class="nav-badge" id="workshop-badge" hidden>0</i></button>
-          <button data-open="garden"><span class="nav-emoji">🌱</span>텃밭</button>
-          <button data-open="shop"><span class="nav-emoji">🛒</span>상점</button>
-          <button data-open="codex"><span class="nav-emoji">📖</span>도감</button>
-        </nav>
-      </section>
-    </main>
-    <script src="potion-data.js"></script>
-    <script src="chapter-data.js"></script>
-    <script src="app.js"></script>
-  </body>
+  <!-- 드래그 고스트(고정 루트 — setPointerCapture는 여기에) -->
+  <div class="drag-ghost" id="dragGhost" aria-hidden="true"></div>
+
+  <!-- 파티클 레이어(가마/빻기/치유) -->
+  <canvas class="fx-canvas" id="fxCanvas" aria-hidden="true"></canvas>
+
+  <!-- 봉인 payoff 플래시 -->
+  <div class="seal-flash" id="sealFlash" aria-hidden="true"></div>
+
+  <!-- 마감 시트(불 끄기) — 무압박 정산. 풀스크린 1컷. 빨간 경고 금지. -->
+  <div class="closing-sheet" id="closingSheet" aria-hidden="true">
+    <div class="cs-inner">
+      <div class="cs-flame" aria-hidden="true">🕯️</div>
+      <h2 class="cs-title">오늘의 불을 끕니다</h2>
+      <p class="cs-sub" id="csSub">정령들을 모두 재웠어요.</p>
+      <div class="cs-stats">
+        <div class="cs-row"><span class="cs-k">재운 정령</span><span class="cs-v" id="csHealed">0</span></div>
+        <div class="cs-row"><span class="cs-k">오늘 별사탕</span><span class="cs-v" id="csStars">★ 0</span></div>
+        <div class="cs-row"><span class="cs-k">연속일</span><span class="cs-v" id="csStreak">1일</span></div>
+      </div>
+      <p class="cs-preview" id="csPreview">내일은 또 누가 찾아올까요…</p>
+      <button class="cs-close" id="csClose">잘 자요</button>
+    </div>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="game.js"></script>
+</body>
 </html>
